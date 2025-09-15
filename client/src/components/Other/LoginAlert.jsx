@@ -32,7 +32,7 @@ const LoginAlert = ({ onClose }) => {
           adventure.
         </p>
         <div className="flex justify-end gap-4">
-          <Link to="/login" className="btn btn-primary" onClick={onClose}>
+          <Link to="/sign-in" className="btn btn-primary" onClick={onClose}>
             Login
           </Link>
           <button onClick={onClose} className="btn btn-ghost">

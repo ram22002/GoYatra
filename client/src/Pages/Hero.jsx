@@ -1,6 +1,7 @@
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useUser } from '@clerk/clerk-react';
 import SplitText from '../components/ui/ReactBIt/SplitText';
 import RotatingText from '../components/ui/ReactBIt/RotatingText';
 import InfiniteMenu from '../components/ui/ReactBIt/InfiniteMenu ';
@@ -9,16 +10,11 @@ import LoginAlert from '../components/Other/LoginAlert';
 export default function Hero() {
   const containerRef = useRef(null);
   const [showAlert, setShowAlert] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    setIsAuthenticated(!!token);
-  }, []);
+  const { isSignedIn } = useUser();
 
   const handleGetStartedClick = (e) => {
-    if (!isAuthenticated) {
+    if (!isSignedIn) {
       e.preventDefault();
       setShowAlert(true);
     } else {

@@ -126,7 +126,8 @@ const TripPlanDisplay = () => {
   };
 
   if (loading) {
-    return <Loader />;
+    return <Loader tripDetails={tripPlan?.tripDetails} />;
+
   }
 
   if (!tripPlan || !tripPlan.tripDetails || !tripPlan.generatedPlan) {

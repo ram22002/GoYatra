@@ -1,9 +1,7 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Home,
-  LogIn,
-  LogOut,
   Moon,
   PhoneCall,
   PlaneTakeoff,
@@ -12,29 +10,11 @@ import {
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { THEMES } from "../Themes/index";
+import { SignedIn, SignedOut, UserButton } from "@clerk/clerk-react";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { theme, changeTheme } = useTheme();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    setIsAuthenticated(!!token);
-
-    const handleLogin = () => setIsAuthenticated(true);
-    window.addEventListener("login", handleLogin);
-
-    return () => window.removeEventListener("login", handleLogin);
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    setIsAuthenticated(false);
-    setIsMenuOpen(false);
-    navigate("/");
-  };
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
@@ -92,17 +72,14 @@ export default function Navbar() {
             </ul>
           </div>
 
-          {isAuthenticated ? (
-            <button className="btn btn-ghost gap-2" onClick={handleLogout}>
-              <LogOut className="w-5 h-5" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
-          ) : (
-            <Link to="/login" className="btn btn-ghost">
-              <LogIn className="text-primary-300" />
-              <span className="hidden sm:inline">Login</span>
+          <SignedIn>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
+          <SignedOut>
+            <Link to="/sign-in" className="btn btn-ghost">
+              Login
             </Link>
-          )}
+          </SignedOut>
         </div>
 
         {/* Mobile Hamburger */}
@@ -161,16 +138,14 @@ export default function Navbar() {
               )}
             </div>
 
-
-            {isAuthenticated ? (
-              <button className="btn btn-ghost w-full justify-start" onClick={handleLogout}>
-                <LogOut className="mr-2 text-primary-300" /> Logout
-              </button>
-            ) : (
-              <Link to="/login" className="btn btn-ghost w-full justify-start" onClick={toggleMenu}>
-                <LogIn className="mr-2 text-primary-300" /> Login
+            <SignedIn>
+              <UserButton afterSignOutUrl="/" />
+            </SignedIn>
+            <SignedOut>
+              <Link to="/sign-in" className="btn btn-ghost w-full justify-start" onClick={toggleMenu}>
+                Login
               </Link>
-            )}
+            </SignedOut>
           </div>
         </div>
       )}
