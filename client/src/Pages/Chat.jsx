@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import axios from "axios";
 import { PlaneTakeoff, Send, Mic, Square, Volume2, VolumeX } from "lucide-react";
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import useAxios from "../components/Axios/axios";
 
 const intentButtons = [
   { label: "🔁 Reset Password", message: "How can I reset my password?" },
@@ -24,6 +24,7 @@ function Chat() {
   const [speaking, setSpeaking] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(true);
+  const axiosInstance = useAxios();
 
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
@@ -108,7 +109,7 @@ function Chat() {
     setLoading(true);
 
     try {
-      const res = await axios.post("http://localhost:5000/api/tripplan/chat", {
+      const res = await axiosInstance.post("/tripplan/chat", {
         message: messageToSend,
       });
 

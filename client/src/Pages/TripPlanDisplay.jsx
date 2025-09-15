@@ -1,39 +1,26 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaStar, FaMapMarkerAlt, FaClock, FaSun, FaLandmark, FaMap, FaBuilding } from "react-icons/fa";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { PlanContext } from "../components/context/TripContext";
-import { axiosInstance } from "../components/Axios/axios";
+import { useTrip } from "../components/context/TripContext";
+import useAxios from "../components/Axios/axios";
 import Loader from "../components/Other/Loader";
 import TripWeather from "./TripWeather";
-import { useAuth } from "@clerk/clerk-react";
 
 const TripPlanDisplay = () => {
   const { tripId } = useParams();
-  const { tripPlan, setTripPlan } = useContext(PlanContext);
+  const { tripPlan, setTripPlan } = useTrip();
   const [loading, setLoading] = useState(true);
   const [openDay, setOpenDay] = useState(null);
   const navigate = useNavigate();
-  const { getToken } = useAuth();
+  const axiosInstance = useAxios();
 
 
 
   useEffect(() => {
     const fetchTripDetails = async () => {
       try {
-        const token = await getToken();
-        if (!token) {
-          alert("Please log in first.");
-          navigate("/login");
-          return;
-        }
-
-
-        const response = await axiosInstance.get(`/tripplan/${tripId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await axiosInstance.get(`/tripplan/${tripId}`);
 
         const { trip } = response.data;
 

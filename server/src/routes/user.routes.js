@@ -5,9 +5,7 @@ const {
 } = require('../controllers/user.controller');
 const router = express.Router();
 
-const { clerkAuthMiddleware } = require('../middleware/clerk.middleware.js');
-
-router.get('/check-auth', clerkAuthMiddleware, checkAuth);
-router.post('/sync', clerkAuthMiddleware, syncUser);
+router.get('/check-auth', checkAuth);
+router.post('/sync', syncUser);
 
 module.exports = router;

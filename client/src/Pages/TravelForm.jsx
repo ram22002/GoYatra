@@ -6,7 +6,7 @@ import GooglePlacesAutocomplete from "react-google-places-autocomplete";
 import TiltedCard from "../components/ui/ReactBIt/TiltedCard";
 import { useNavigate } from "react-router-dom";
 import { PlanContext } from "../components/context/TripContext";
-import { axiosInstance } from "../components/Axios/axios";
+import useAxios from "../components/Axios/axios";
 import { useAuth } from "@clerk/clerk-react";
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 
@@ -19,7 +19,7 @@ export default function EnhancedTravelForm() {
   const [loading, setLoading] = useState(false);
   const { setTripPlan } = useContext(PlanContext);
   const [formStep, setFormStep] = useState(1);
-  const { getToken } = useAuth();
+  const axiosInstance = useAxios();
 
   const navigate = useNavigate();
 
@@ -138,7 +138,6 @@ export default function EnhancedTravelForm() {
     setLoading(true);
 
     try {
-      const token = await getToken();
       const response = await axiosInstance.post(
         "tripplan/createtrip",
         {
@@ -146,12 +145,6 @@ export default function EnhancedTravelForm() {
           days,
           budget,
           travelGroup,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          withCredentials: true,
         }
       );
 

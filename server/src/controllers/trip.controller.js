@@ -20,15 +20,12 @@ const syncUser = async (clerkId) => {
     }
     const email = clerkUser.emailAddresses[0].emailAddress;
 
-    // If not found by clerkId, check if a user exists with the email
     user = await userModel.findOne({ email: email });
 
     if (user) {
-      // User with email exists, link it to the clerkId
       user.clerkId = clerkId;
       await user.save();
     } else {
-      // If no user found by either clerkId or email, create a new one
       const username = clerkUser.username || email.split('@')[0];
       user = await userModel.create({
         clerkId: clerkId,
@@ -41,19 +38,24 @@ const syncUser = async (clerkId) => {
 };
 
 module.exports.createTrip = async (req, res) => {
+  console.log("\n--- [CREATE TRIP START] ---");
   try {
     const { destination, days, budget, travelGroup } = req.body;
     const clerkId = req.auth.userId;
+    console.log("Request Body:", { destination, days, budget, travelGroup });
 
     if (!destination || !days || !budget || !travelGroup) {
+      console.error("Error: Missing required fields.");
       return res.status(400).json({ message: "All fields are required" });
     }
 
     if (parseInt(days, 10) > 7) {
+      console.error("Error: Max 7 days allowed.");
       return res.status(400).json({ message: "Max 7 days allowed" });
     }
 
     const user = await syncUser(clerkId);
+    console.log("User synced/found:", user.email);
 
     // Generate AI Response
     const FINAL_PROMPT = AI_PROMPT.replace("{location}", destination)
@@ -62,9 +64,32 @@ module.exports.createTrip = async (req, res) => {
       .replace("{budget}", budget)
       .replace("{totaldays}", days);
 
-    const result = await chatSession.sendMessage(FINAL_PROMPT);
-    const aiResponse = JSON.parse(result?.response?.text());
+    console.log("Sending prompt to AI...");
+    // console.log("Final Prompt:", FINAL_PROMPT); // Uncomment for debugging prompt issues
 
+    const result = await chatSession.sendMessage(FINAL_PROMPT);
+    const rawResponse = result?.response?.text();
+    console.log("--- Raw AI Response ---", rawResponse);
+
+    if (!rawResponse) {
+      console.error("Error: AI model returned an empty response.");
+      return res.status(500).json({ message: "AI model returned an empty response." });
+    }
+
+    const cleanedResponse = rawResponse.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+    console.log("--- Cleaned AI Response ---", cleanedResponse);
+
+    let aiResponse;
+    try {
+      aiResponse = JSON.parse(cleanedResponse);
+      console.log("Successfully parsed AI response.");
+    } catch (error) {
+      console.error("Error: Failed to parse AI response. JSON is malformed.");
+      console.error("Underlying parse error:", error.message);
+      return res.status(500).json({ message: "AI returned a malformed plan. Could not parse." });
+    }
+
+    console.log("Fetching images for itinerary and hotels...");
     // Fetch real images
     if (aiResponse?.itinerary) {
       for (const day of Object.values(aiResponse.itinerary)) {
@@ -78,8 +103,9 @@ module.exports.createTrip = async (req, res) => {
         hotel.hotelImageUrl = await fetchPlacePhoto(hotel.hotelName);
       }
     }
+    console.log("Image fetching complete.");
 
-    // Save trip to database
+    console.log("Attempting to save trip to database...");
     const trip = await tripModel.create({
       userId: user._id,
       destination,
@@ -88,13 +114,18 @@ module.exports.createTrip = async (req, res) => {
       travelGroup,
       generatedPlan: aiResponse,
     });
+    console.log("Successfully saved trip to database. Trip ID:", trip._id);
 
     await userModel.findByIdAndUpdate(user._id, { $push: { trips: trip._id } });
+    console.log("Added trip reference to user.");
 
+    console.log("--- [CREATE TRIP SUCCESS] ---\n");
     res.status(200).json({ trip });
-  } catch(error){
-    console.error(error);
-    res.status(500).json({ message: `Failed to generate trip   ${error}` });
+
+  } catch (error) {
+    console.error("--- [CREATE TRIP FAILED] ---");
+    console.error("An unexpected error occurred:", error);
+    res.status(500).json({ message: `Failed to generate trip: ${error.message}` });
   }
 };
 

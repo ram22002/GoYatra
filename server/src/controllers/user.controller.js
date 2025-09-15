@@ -1,7 +1,4 @@
 const userModel = require("../models/user.model");
-const { Clerk } = require('@clerk/clerk-sdk-node');
-
-const clerk = new Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
 
 module.exports.checkAuth = async (req, res) => {
   try {
@@ -12,6 +9,7 @@ module.exports.checkAuth = async (req, res) => {
 };
 
 module.exports.syncUser = async (req, res) => {
+  console.log("Sync User controller function was hit.");
   try {
     const { userId, email, username } = req.body;
 
