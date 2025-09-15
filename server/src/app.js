@@ -14,7 +14,7 @@ const tripPlanRoutes = require("./routes/tripPlanRoutes.js");
 // Middleware should be registered before routes
 app.use(
   cors({
-    origin: [process.env.CORS_URI || "https://go-yatra-team-async.vercel.app", "http://localhost:5173", "https://5175-firebase-goyatragit-1757951790422.cluster-fdkw7vjj7bgguspe3fbbc25tra.cloudworkstations.dev"],
+    origin: [process.env.CORS_URI || "https://go-yatra-team-async.vercel.app", "http://localhost:5173"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
