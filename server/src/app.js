@@ -4,6 +4,7 @@ const app = express();
 const cors = require("cors");
 const cookieParser = require('cookie-parser');
 const dotenv = require("dotenv");
+const { customAuthMiddleware } = require("./middleware/auth.middleware.js");
 
 dotenv.config({ path: "./.env" });
 
@@ -21,7 +22,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.use("/api/user", userRoutes);
-app.use("/api/tripplan", tripPlanRoutes);
+app.use("/api/user", customAuthMiddleware, userRoutes);
+app.use("/api/tripplan", customAuthMiddleware, tripPlanRoutes);
 
 module.exports = app;
