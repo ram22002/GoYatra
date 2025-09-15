@@ -1,6 +1,7 @@
-import React from "react";
-import { Route, Routes } from "react-router-dom";
-import { SignedIn, SignedOut, RedirectToSignIn, SignIn, SignUp } from '@clerk/clerk-react';
+
+import React, { useEffect } from "react";
+import { Route, Routes, Navigate } from "react-router-dom";
+import { SignedIn, SignedOut, RedirectToSignIn, SignIn, SignUp, useUser, useAuth } from '@clerk/clerk-react';
 
 import Navbar from "./components/Other/Navbar";
 import Hero from "./Pages/Hero";
@@ -11,12 +12,53 @@ import Chat from "./Pages/Chat";
 
 const App = () => {
   const { theme } = useTheme();
+  const { user } = useUser();
+  const { getToken } = useAuth();
+
+  useEffect(() => {
+    const syncUserToDb = async () => {
+      if (user) {
+        try {
+          const token = await getToken();
+          const response = await fetch('/api/user/sync', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              email: user.primaryEmailAddress.emailAddress,
+              username: user.username,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('Failed to sync user');
+          }
+        } catch (error) {
+          console.error('Error syncing user:', error);
+        }
+      }
+    };
+
+    syncUserToDb();
+  }, [user, getToken]);
 
   return (
     <div data-theme={theme} className="w-screen h-screen overflow-x-hidden">
       <Navbar />
       <Routes>
-        <Route path="/" element={<Hero />} />
+        <Route path="/" element={
+          <>
+            <SignedIn>
+              <Navigate to="/travel-preferences" />
+            </SignedIn>
+            <SignedOut>
+              <Hero />
+            </SignedOut>
+          </>
+        } />
         <Route
           path="/sign-in/*"
           element={

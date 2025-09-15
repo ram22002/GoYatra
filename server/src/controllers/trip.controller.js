@@ -6,16 +6,10 @@ const { AI_PROMPT } = require("../utils/options");
 
 const { fetchPlacePhoto } = require("../utils/fetchPlacePhoto"); // your helper function
 
-
-
-
-
-
 module.exports.createTrip = async (req, res) => {
   try {
     const { destination, days, budget, travelGroup } = req.body;
-    const userId = req.user._id;
-     console.log(userId)
+    const clerkId = req.auth.userId;
 
     if (!destination || !days || !budget || !travelGroup) {
       return res.status(400).json({ message: "All fields are required" });
@@ -23,6 +17,11 @@ module.exports.createTrip = async (req, res) => {
 
     if (parseInt(days, 10) > 7) {
       return res.status(400).json({ message: "Max 7 days allowed" });
+    }
+
+    const user = await userModel.findOne({ clerkId });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
     // Generate AI Response
@@ -75,7 +74,7 @@ module.exports.createTrip = async (req, res) => {
 
     // Save trip to database
     const trip = await tripModel.create({
-      userId,
+      userId: user._id,
       destination,
       days,
       budget,
@@ -83,7 +82,7 @@ module.exports.createTrip = async (req, res) => {
       generatedPlan: aiResponse,
     });
 
-    await userModel.findByIdAndUpdate(userId, { $push: { trips: trip._id } });
+    await userModel.findByIdAndUpdate(user._id, { $push: { trips: trip._id } });
 
    res.status(200).json({trip });
   } catch(error){
@@ -95,7 +94,7 @@ module.exports.createTrip = async (req, res) => {
 module.exports.getTrip = async (req, res) => {
   try {
     let { tripId } = req.params;
-    const userId = req.user._id;
+    const clerkId = req.auth.userId;
 
     tripId = tripId.replace(":", "");
 
@@ -109,7 +108,12 @@ module.exports.getTrip = async (req, res) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
-    if (trip.userId.toString() !== userId.toString()) {
+    const user = await userModel.findOne({ clerkId });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (trip.userId.toString() !== user._id.toString()) {
       return res
         .status(403)
         .json({ message: "You are not authorized to view this trip" });

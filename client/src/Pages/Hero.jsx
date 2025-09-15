@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import SplitText from '../components/ui/ReactBIt/SplitText';
 import RotatingText from '../components/ui/ReactBIt/RotatingText';
-import InfiniteMenu from '../components/ui/ReactBIt/InfiniteMenu ';
+import InfiniteMenu from '../components/ui/ReactBIt/InfiniteMenu';
 import LoginAlert from '../components/Other/LoginAlert';
 
 export default function Hero() {
