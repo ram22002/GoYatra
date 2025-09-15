@@ -3,6 +3,9 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const cookieParser = require('cookie-parser');
+const dotenv = require("dotenv");
+
+dotenv.config({ path: "./.env" });
 
 const userRoutes = require("./routes/user.routes.js");
 const tripPlanRoutes = require("./routes/tripPlanRoutes.js");
