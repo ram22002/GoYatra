@@ -1,23 +1,13 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Ensure the API key is available
 if (!process.env.GOOGLE_API_KEY) {
-  console.error("Error: GOOGLE_API_KEY is not set in the environment variables.");
+  console.error("Error: GOOGLE_API_KEY is not set.");
   throw new Error("Missing GOOGLE_API_KEY");
 }
 
-// Initialize the Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-
-// Use the correct model
 const GEMINI_MODEL = "gemini-1.5-flash";
 
-
-/**
- * Chat with Gemini as GoYatra's travel support assistant
- * @param {string} message - The user's query
- * @returns {Promise<string>} - The chatbot's response
- */
 async function chatWithGemini(message) {
   try {
     if (!message || typeof message !== "string" || !message.trim()) {
@@ -26,51 +16,66 @@ async function chatWithGemini(message) {
 
     const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
-    // System instructions with custom GoYatra details
     const prompt = [
       {
         role: "user",
         parts: [
           {
             text: `
-You are "GoYatra Assistant", a helpful and friendly **customer support AI agent** for our travel website **GoYatra**.
+You are "GoYatra Assistant", a friendly AI support agent for the travel website GoYatra.
 
-Your job is to assist users with:
-- Booking issues (flights, hotels, packages)
-- Payment problems or refunds
-- Account and profile support
-- Cancellation or rescheduling
-- General travel help related to our services
+📝 ALWAYS respond in **valid JSON** like this:
+{
+  "action": "navigate" | "setTheme" | "showInfo" | "showWeather",
+  "target": "<optional - route or theme>",
+  "message": "Response to show user"
+}
 
-✅ Here's what you should **know about GoYatra**:
-- Flight booking is currently **under development**, so kindly inform users that it's not available yet.
+📌 Rules about GoYatra:
+- Flights are under development. Tell users that if they ask about flights.
 - Hotel and package bookings are available.
-- Weather details are included in the **Itinerary** section. If users ask about weather, guide them to check their itinerary.
-- To **reset passwords**, users must contact the developer via **support@goyatra.com**.
-- Refunds may take **5–7 business days** to process depending on the payment provider.
-- Users can view and manage bookings in their **profile section**.
+- Weather is shown in the "Itinerary" section.
+- To reset password, email support@goyatra.com
+- Refunds take 5-7 days
+- Users can manage bookings in their profile section.
 
-❗ If a user asks something unrelated to travel or customer support (e.g., jokes, astrology, programming help, etc.), reply:
-**"I'm your travel support assistant! Feel free to ask me anything related to bookings, payments, cancellations, or travel help."**
+📌 Action Examples:
+- If user says "plan a trip to Norway" → 
+  {"action":"navigate","target":"/travel-prefrence","message":"Let's plan your Norway trip!"}
 
-Always be polite, clear, and empathetic. Sound human and supportive in your tone.
+- If user says "enable dark mode" → 
+  {"action":"setTheme","target":"dark","message":"Dark mode enabled 🌙"}
 
-Now respond to the user’s query:
-"${message}"
-          `.trim(),
+- If user asks for weather → 
+  {"action":"showWeather","message":"Weather info is available in your itinerary section."}
+
+❗ If unrelated to travel, return:
+{"action":"showInfo","message":"I'm your travel support assistant! Ask me about bookings, payments, cancellations, or travel help."}
+
+User: ${message}
+`.trim(),
           },
         ],
       },
     ];
 
     const result = await model.generateContent({ contents: prompt });
+    const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    const responseText = result.response.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    return responseText || "I'm here to help with your travel plans! Can you clarify your request?";
+    try {
+      return JSON.parse(text);
+    } catch {
+      return {
+        action: "showInfo",
+        message: "I'm here to help with your travel plans! Can you clarify your request?",
+      };
+    }
   } catch (error) {
     console.error("Gemini error:", error.message || error);
-    return "Sorry, I'm unable to respond right now. Please try again later.";
+    return {
+      action: "showInfo",
+      message: "Sorry, I'm unable to respond right now. Please try again later.",
+    };
   }
 }
 

@@ -42,7 +42,7 @@ module.exports.createTrip = async (req, res) => {
   try {
     const { destination, days, budget, travelGroup } = req.body;
     const clerkId = req.auth.userId;
-    console.log("Request Body:", { destination, days, budget, travelGroup });
+    // console.log("Request Body:", { destination, days, budget, travelGroup });
 
     if (!destination || !days || !budget || !travelGroup) {
       console.error("Error: Missing required fields.");

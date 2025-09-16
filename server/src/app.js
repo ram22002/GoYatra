@@ -9,7 +9,8 @@ const { customAuthMiddleware } = require("./middleware/auth.middleware.js");
 dotenv.config({ path: "./.env" });
 
 const userRoutes = require("./routes/user.routes.js");
-const tripPlanRoutes = require("./routes/tripPlanRoutes.js");
+const tripPlanRoutes = require("./routes/tripPlan.routes.js");
+const bookingRoutes= require("./routes/booking.routes.js")
 
 // Middleware should be registered before routes
 app.use(
@@ -24,7 +25,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Routes
-app.use("/api/user", customAuthMiddleware, userRoutes);
-app.use("/api/tripplan", customAuthMiddleware, tripPlanRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/tripplan", tripPlanRoutes);
+app.use('/api', bookingRoutes);
 
 module.exports = app;

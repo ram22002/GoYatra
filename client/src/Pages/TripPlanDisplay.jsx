@@ -1,26 +1,46 @@
-import React, { useEffect, useState } from "react";
+import  { useEffect, useState, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaStar, FaMapMarkerAlt, FaClock, FaSun, FaLandmark, FaMap, FaBuilding } from "react-icons/fa";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useTrip } from "../components/context/TripContext";
+import { PlanContext } from "../components/context/TripContext";
 import useAxios from "../components/Axios/axios";
 import Loader from "../components/Other/Loader";
 import TripWeather from "./TripWeather";
+import { useAuth } from "@clerk/clerk-react";
+import { Plane } from "lucide-react";
+import BookingModal from "../components/BookingModal";
+
 
 const TripPlanDisplay = () => {
+  const axiosInstance = useAxios(); 
+  const { getToken } = useAuth();
   const { tripId } = useParams();
-  const { tripPlan, setTripPlan } = useTrip();
+  const { tripPlan, setTripPlan } = useContext(PlanContext);
   const [loading, setLoading] = useState(true);
   const [openDay, setOpenDay] = useState(null);
   const navigate = useNavigate();
-  const axiosInstance = useAxios();
 
-
+  // Weather API key (replace with your OpenWeatherMap API key)
+  // const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY; // Get from openweathermap.org
+  // const WEATHER_API_URL = "https://api.openweathermap.org/data/2.5/weather";
 
   useEffect(() => {
     const fetchTripDetails = async () => {
+      const token = getToken()
+      if (!token) {
+        alert("Please log in first.");
+        navigate("/");
+        return;
+      }
+      setLoading(false);
+
       try {
-        const response = await axiosInstance.get(`/tripplan/${tripId}`);
+        // api call  /tripplan
+        const response = await axiosInstance.get(`/tripplan/${tripId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         const { trip } = response.data;
 
@@ -41,8 +61,7 @@ const TripPlanDisplay = () => {
     };
 
     fetchTripDetails();
-
-  }, [tripId, setTripPlan, navigate]);
+  }, [tripId, setTripPlan, navigate, tripPlan?.tripDetails?.location]);
 
 
 
@@ -194,10 +213,10 @@ const TripPlanDisplay = () => {
                 >
                   <figure className="relative">
                     <img
-                      src={hotel.hotelImageUrl || "https://via.placeholder.com/150?text=Image+Not+Available"}
+                      src={hotel.hotelImageUrl || "https://img.freepik.com/free-vector/flat-hotel-facade-background_23-2148157379.jpg"}
                       alt={hotel.hotelName || "Hotel"}
                       className="w-full h-48 object-cover transition-transform duration-500 hover:scale-105"
-                      onError={(e) => (e.target.src = "https://via.placeholder.com/150?text=Image+Not+Available")}
+                      onError={(e) => (e.target.src = "https://img.freepik.com/free-vector/flat-hotel-facade-background_23-2148157379.jpg")}
                     />
                     <div className="absolute top-4 right-4 badge bg-base-300">
                       {hotel.rating || "N/A"} <FaStar className="ml-1" />
@@ -214,18 +233,23 @@ const TripPlanDisplay = () => {
                     <p className="text-sm  line-clamp-2">{hotel.description || "No description available"}</p>
                     <div className="card-actions flex justify-between">
                       <motion.button
-                        className="btn bg-base-300 rounded-full px-6"
-                        variants={buttonVariants}
-                        whileHover="hover"
-                        whileTap="tap"
-                        onClick={() => {
-                          const hotelName = encodeURIComponent(hotel.hotelName || tripDetails.location);
-                          window.open(`https://www.booking.com/searchresults.en-gb.html?aid=8020813&amp;ss=${hotelName}`, "_blank");
-                        }}
-                      >
+  className="btn bg-base-300 rounded-full px-6"
+  variants={buttonVariants}
+  whileHover="hover"
+  whileTap="tap"
+  onClick={() => {
+    const hotelName = encodeURIComponent(
+      hotel.hotelName || tripDetails.location || "Unknown Hotel"
+    );
+    window.open(
+      `https://www.booking.com/searchresults.en-gb.html?aid=8020813&ss=${hotelName}`,
+      "_blank"
+    );
+  }}
+>
+  Book Now  
+</motion.button>
 
-                        Book Now
-                      </motion.button>
                       <motion.button
                         className="btn bg-base-300 rounded-full px-6"
                         variants={buttonVariants}
@@ -296,21 +320,34 @@ const TripPlanDisplay = () => {
         </motion.section>
         {/* Itinerary */}
         <section>
-          <div className="md:flex items-center justify-between ">
-            <h2 className="text-4xl font-extrabold mb-8 flex items-center">
-              <FaClock className="mr-3" /> Your Itinerary 📅
-            </h2>
-            {itinerary &&
-              <motion.button
-                onClick={downloadItinerary}
-                variants={buttonVariants}
-                whileTap="tap"
-                className="btn bg-primary/20 hover:scale-105 transition-all duration-200 animate-bounce  mt-4"
-              >
-                Download Itinerary 📄
-              </motion.button>
-            }
-          </div>
+        {/* // Inside TripPlanDisplay.jsx, in the "Itinerary" section */}
+<div className="md:flex items-center justify-between">
+  <h2 className="text-4xl font-extrabold mb-8 flex items-center">
+    <FaClock className="mr-3" /> Your Itinerary 📅
+  </h2>
+  {/* {itinerary && ( */}
+    <div className="flex gap-2">
+       <motion.button
+        onClick={() => document.getElementById('booking_modal').showModal()}
+        variants={buttonVariants}
+        whileTap="tap"
+        className="btn bg-blue-500/20 hover:scale-105 transition-all duration-200 animate-bounce mt-4"
+      >
+        <Plane size={18} /> Book Flights/Trains
+      </motion.button>
+      <motion.button
+        onClick={downloadItinerary}
+        variants={buttonVariants}
+        whileTap="tap"
+        className="btn bg-primary/20 hover:scale-105 transition-all duration-200 animate-bounce mt-4"
+      >
+        Download Itinerary 📄
+      </motion.button>
+     
+    </div>
+
+</div>
+
           {itinerary && Object.keys(itinerary).length > 0 ? (
             Object.keys(itinerary).map((day) => {
               const { theme, bestTimeToVisit, plan } = itinerary[day];
@@ -379,10 +416,10 @@ const TripPlanDisplay = () => {
                                 >
                                   <div className="flex items-start space-x-4">
                                     <img
-                                      src={place.placeImageUrl || "https://via.placeholder.com/150?text=Image+Not+Available"}
+                                      src={place.placeImageUrl || "https://img.freepik.com/free-vector/flat-hotel-facade-background_23-2148157379.jpg"}
                                       alt={place.placeName || "Place"}
                                       className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
-                                      onError={(e) => (e.target.src = "https://via.placeholder.com/150?text=Image+Not+Available")}
+                                      onError={(e) => (e.target.src = "https://img.freepik.com/free-vector/flat-hotel-facade-background_23-2148157379.jpg")}
                                     />
                                     <div className="flex-1">
                                       <h4 className="text-lg font-semibold">{place.placeName || "Unknown Place"}</h4>
@@ -440,6 +477,8 @@ const TripPlanDisplay = () => {
           )}
         </section>
       </div>
+       {/* Add the BookingModal component here */}
+    <BookingModal destination={tripDetails?.location} />
     </div>
   );
 };

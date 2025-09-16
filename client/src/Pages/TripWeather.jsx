@@ -84,7 +84,7 @@ const TripWeather = ({ tripId, tripPlan, setTripPlan }) => {
       }
       
       try {
-        console.log("Fetching weather for:", tripPlan.tripDetails.location);
+        // console.log("Fetching weather for:", tripPlan.tripDetails.location);
         // Use a direct fetch for weather API to avoid potential CORS issues
         const response = await fetch(`${WEATHER_API_URL}?q=${encodeURIComponent(tripPlan.tripDetails.location)}&appid=${WEATHER_API_KEY}&units=metric`);
         

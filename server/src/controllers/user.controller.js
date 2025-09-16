@@ -9,7 +9,7 @@ module.exports.checkAuth = async (req, res) => {
 };
 
 module.exports.syncUser = async (req, res) => {
-  console.log("Sync User controller function was hit.");
+  // console.log("Sync User controller function was hit.");
   try {
     const { userId, email, username } = req.body;
 

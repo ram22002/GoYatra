@@ -3,6 +3,7 @@ import { PlaneTakeoff, Send, Mic, Square, Volume2, VolumeX } from "lucide-react"
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import useAxios from "../components/Axios/axios";
+import { useTheme } from "../components/context/ThemeContext";
 
 const intentButtons = [
   { label: "🔁 Reset Password", message: "How can I reset my password?" },
@@ -25,6 +26,8 @@ function Chat() {
   const [loading, setLoading] = useState(false);
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(true);
   const axiosInstance = useAxios();
+    const { theme, changeTheme } = useTheme();
+
 
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
@@ -100,35 +103,45 @@ function Chat() {
     synthRef.current.speak(utterance);
   };
 
-  const handleSend = async (customMsg) => {
-    const messageToSend = customMsg || input;
-    if (!messageToSend.trim()) return;
+ const handleSend = async (customMsg) => {
+  const messageToSend = customMsg || input;
+  if (!messageToSend.trim()) return;
 
-    setMessages((prev) => [...prev, { from: "user", text: messageToSend }]);
-    setInput("");
-    setLoading(true);
+  setMessages((prev) => [...prev, { from: "user", text: messageToSend }]);
+  setInput("");
+  setLoading(true);
 
-    try {
-      const res = await axiosInstance.post("/tripplan/chat", {
-        message: messageToSend,
-      });
+  try {
+    const res = await axiosInstance.post("/tripplan/chat", {
+      message: messageToSend,
+    });
 
-      const rawReply = res.data.reply;
+    const reply = res.data.reply;
 
-      let botReply = rawReply.replace(/\*\*/g, "\n\n");
-      botReply = botReply.replace(/\*/g, "\n");
-      botReply = botReply.trim();
+    // If reply is an object (Gemini response)
+    const botText = typeof reply === "object" && reply.message 
+      ? reply.message 
+      : reply;
 
-      setMessages((prev) => [...prev, { from: "bot", text: botReply }]);
-      speakText(botReply);
-    } catch {
-      const errMsg = "Server error occurred.";
-      setMessages((prev) => [...prev, { from: "bot", text: errMsg }]);
-      speakText(errMsg);
-    } finally {
-      setLoading(false);
+    setMessages((prev) => [...prev, { from: "bot", text: botText }]);
+    speakText(botText);
+
+    // Optional: handle actions from Gemini
+    if (reply.action === "navigate" && reply.target) {
+      window.location.href = reply.target;
     }
-  };
+    if (reply.action === "setTheme" && reply.target) {
+      changeTheme(theme == "dark"?"light":"dark")
+    }
+
+  } catch (err) {
+    const errMsg = "Server error occurred.";
+    setMessages((prev) => [...prev, { from: "bot", text: errMsg }]);
+    speakText(errMsg);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-base-200 flex items-center justify-center px-4 py-8">

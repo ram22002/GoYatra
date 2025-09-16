@@ -33,7 +33,7 @@ module.exports.chatController = async (req, res) => {
     }
 
     await new chatModel({ user: message, bot: reply }).save();
-
+    console.log(reply)
     res.json({ reply });
   } catch (err) {
     console.error("ChatController error:", err.message);
