@@ -5,7 +5,7 @@ const useAxios = () => {
   const { getToken } = useAuth();
 
   const axiosInstance = axios.create({
-    baseURL: "http://localhost:5000/api", // Corrected: Added /api prefix
+    baseURL: "https://goyatra-htwr.onrender.com/api", // Corrected: Added /api prefix
     withCredentials: true,
   });
 
