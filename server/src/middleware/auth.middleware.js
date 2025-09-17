@@ -17,7 +17,7 @@ const customAuthMiddleware = async (req, res, next) => {
 
   try {
     console.log('Verifying token...');
-    const claims = await clerk.verifyToken(token);
+    const claims = await clerk.verifyToken(token, { clockTolerance: 30 });
     if (!claims) {
       console.log('Token verification failed: No claims.');
       return res.status(401).json({ message: 'Invalid token.' });

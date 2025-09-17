@@ -2,6 +2,7 @@
 import  { useEffect } from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
 import { SignedIn, SignedOut, RedirectToSignIn, SignIn, SignUp, useUser } from '@clerk/clerk-react';
+import { dark } from "@clerk/themes";
 
 import Navbar from "./components/Other/Navbar";
 import Hero from "./Pages/Hero";
@@ -56,7 +57,20 @@ const App = () => {
           path="/sign-in/*"
           element={
             <div className="flex justify-center items-center h-screen">
-              <SignIn routing="path" path="/sign-in" />
+              <SignIn
+                routing="path"
+                path="/sign-in"
+                appearance={{
+                  baseTheme: theme === "dark" ? dark : undefined,
+                  variables: {
+                    colorPrimary: '#6C47FF',
+                    colorText: theme === "dark" ? '#ffffff' : '#000000',
+                    colorBackground: theme === "dark" ? '#1d232a' : '#ffffff',
+                    colorInputBackground: theme === "dark" ? '#2a323c' : '#f9fafb',
+                    colorInputText: theme === "dark" ? '#ffffff' : '#000000'
+                  },
+                }}
+              />
             </div>
           }
         />
@@ -64,7 +78,20 @@ const App = () => {
           path="/sign-up/*"
           element={
             <div className="flex justify-center items-center h-screen">
-              <SignUp routing="path" path="/sign-up" />
+              <SignUp
+                routing="path"
+                path="/sign-up"
+                appearance={{
+                  baseTheme: theme === "dark" ? dark : undefined,
+                  variables: {
+                    colorPrimary: '#6C47FF',
+                    colorText: theme === "dark" ? '#ffffff' : '#000000',
+                    colorBackground: theme === "dark" ? '#1d232a' : '#ffffff',
+                    colorInputBackground: theme === "dark" ? '#2a323c' : '#f9fafb',
+                    colorInputText: theme === "dark" ? '#ffffff' : '#000000'
+                  },
+                }}
+              />
             </div>
           }
         />
@@ -72,9 +99,14 @@ const App = () => {
         <Route
           path="/travel-preferences"
           element={
-            <SignedIn>
-              <EnhancedTravelForm />
-            </SignedIn>
+            <>
+              <SignedIn>
+                <EnhancedTravelForm />
+              </SignedIn>
+              <SignedOut>
+                <Navigate to="/" />
+              </SignedOut>
+            </>
           }
         />
         <Route
@@ -84,9 +116,14 @@ const App = () => {
         <Route
           path="/trip-display/:tripId"
           element={
-            <SignedIn>
-              <TripPlanDisplay />
-            </SignedIn>
+            <>
+              <SignedIn>
+                <TripPlanDisplay />
+              </SignedIn>
+              <SignedOut>
+                <Navigate to="/" />
+              </SignedOut>
+            </>
           }
         />
 

@@ -5,7 +5,7 @@ import Loader from "../components/Other/Loader";
 import GooglePlacesAutocomplete from "react-google-places-autocomplete";
 import TiltedCard from "../components/ui/ReactBIt/TiltedCard";
 import { useNavigate } from "react-router-dom";
-import { PlanContext } from "../components/context/TripContext";
+import { PlanContext } from "../components/context/PlanContext";
 import useAxios from "../components/Axios/axios";
 import { useAuth } from "@clerk/clerk-react";
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;

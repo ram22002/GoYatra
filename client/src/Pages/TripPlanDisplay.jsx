@@ -2,7 +2,7 @@ import  { useEffect, useState, useContext } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaStar, FaMapMarkerAlt, FaClock, FaSun, FaLandmark, FaMap, FaBuilding } from "react-icons/fa";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { PlanContext } from "../components/context/TripContext";
+import { PlanContext } from "../components/context/PlanContext";
 import useAxios from "../components/Axios/axios";
 import Loader from "../components/Other/Loader";
 import TripWeather from "./TripWeather";

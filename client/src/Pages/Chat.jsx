@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { PlaneTakeoff, Send, Mic, Square, Volume2, VolumeX } from "lucide-react";
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import useAxios from "../components/Axios/axios";
 import { useTheme } from "../components/context/ThemeContext";
+import io from 'socket.io-client';
 
 const intentButtons = [
   { label: "🔁 Reset Password", message: "How can I reset my password?" },
@@ -25,13 +25,48 @@ function Chat() {
   const [speaking, setSpeaking] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isSpeechEnabled, setIsSpeechEnabled] = useState(true);
-  const axiosInstance = useAxios();
-    const { theme, changeTheme } = useTheme();
-
+  const { theme, changeTheme } = useTheme();
+  const socketRef = useRef(null);
 
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
   const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const socket = io("https://goyatra-htwr.onrender.com", {
+        auth: {
+            token: token
+        }
+    });
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+        console.log('Connected to socket server');
+    });
+
+    socket.on('bot reply', (data) => {
+        const { bot } = data;
+        const botText = typeof bot === "object" && bot.message 
+          ? bot.message 
+          : bot;
+
+        setMessages((prev) => [...prev, { from: "bot", text: botText }]);
+        speakText(botText);
+        setLoading(false);
+
+        if (bot.action === "navigate" && bot.target) {
+          window.location.href = bot.target;
+        }
+        if (bot.action === "setTheme" && bot.target) {
+          changeTheme(theme == "dark"?"light":"dark")
+        }
+    });
+
+    return () => {
+        socket.disconnect();
+    };
+  }, [changeTheme, theme]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -111,36 +146,7 @@ function Chat() {
   setInput("");
   setLoading(true);
 
-  try {
-    const res = await axiosInstance.post("/tripplan/chat", {
-      message: messageToSend,
-    });
-
-    const reply = res.data.reply;
-
-    // If reply is an object (Gemini response)
-    const botText = typeof reply === "object" && reply.message 
-      ? reply.message 
-      : reply;
-
-    setMessages((prev) => [...prev, { from: "bot", text: botText }]);
-    speakText(botText);
-
-    // Optional: handle actions from Gemini
-    if (reply.action === "navigate" && reply.target) {
-      window.location.href = reply.target;
-    }
-    if (reply.action === "setTheme" && reply.target) {
-      changeTheme(theme == "dark"?"light":"dark")
-    }
-
-  } catch (err) {
-    const errMsg = "Server error occurred.";
-    setMessages((prev) => [...prev, { from: "bot", text: errMsg }]);
-    speakText(errMsg);
-  } finally {
-    setLoading(false);
-  }
+  socketRef.current.emit('chat message', messageToSend);
 };
 
   return (

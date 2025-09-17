@@ -1,4 +1,3 @@
-
 const express = require("express");
 const app = express();
 const cors = require("cors");
@@ -10,12 +9,16 @@ dotenv.config({ path: "./.env" });
 
 const userRoutes = require("./routes/user.routes.js");
 const tripPlanRoutes = require("./routes/tripPlan.routes.js");
-const bookingRoutes= require("./routes/booking.routes.js")
+const bookingRoutes = require("./routes/booking.routes.js");
+const webhookRoutes = require("./routes/webhook.routes.js"); // Import webhook routes
 
-// Middleware should be registered before routes
+// Middleware for webhook
+app.use("/api/webhooks", express.raw({ type: 'application/json' }), webhookRoutes);
+
+// General middleware
 app.use(
   cors({
-    origin: [process.env.CORS_URI || "https://go-yatra-team-async.vercel.app", "http://localhost:5173"],
+    origin: ["https://go-yatra-nine.vercel.app", "http://localhost:5173"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
@@ -24,9 +27,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Routes
-app.use("/api/user", userRoutes);
-app.use("/api/tripplan", tripPlanRoutes);
-app.use('/api', bookingRoutes);
+// Bypass auth middleware in development
+if (process.env.NODE_ENV === 'development') {
+  app.use("/api/user", userRoutes);
+  app.use("/api/tripplan", tripPlanRoutes);
+  app.use('/api', bookingRoutes);
+} else {
+  app.use("/api/user", customAuthMiddleware, userRoutes);
+  app.use("/api/tripplan", customAuthMiddleware, tripPlanRoutes);
+  app.use('/api', bookingRoutes);
+}
 
 module.exports = app;
