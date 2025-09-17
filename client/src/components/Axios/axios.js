@@ -5,7 +5,7 @@ const useAxios = () => {
   const { getToken } = useAuth();
 
   const axiosInstance = axios.create({
-    baseURL: "http://localhost:5000/api", // Corrected: Added /api prefix
+    baseURL: import.meta.env.VITE_API_URL, 
     withCredentials: true,
   });
 
