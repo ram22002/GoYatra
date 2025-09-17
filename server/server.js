@@ -1,17 +1,26 @@
-const dotenv = require("dotenv");
-dotenv.config();
-const app = require('./src/app')
+// Load dotenv only in development (not on Render)
+if (process.env.NODE_ENV !== "production") {
+  try {
+    require("dotenv").config();
+    console.log("✅ Loaded .env file for local development");
+  } catch (err) {
+    console.warn("⚠️ Skipping dotenv (not installed in production)");
+  }
+}
+
+const app = require("./src/app");
 const socketIo = require("socket.io");
 const jwt = require("jsonwebtoken");
-
-const connct = require("./src/db/db");
-connct();
-
-
-
-
 const http = require("http");
+
+// Connect to DB
+const connect = require("./src/db/db");
+connect();
+
+// Create HTTP server
 const server = http.createServer(app);
+
+// Setup Socket.IO with CORS
 const io = socketIo(server, {
   cors: {
     origin: process.env.CORS_URI || "https://go-yatra-team-async.vercel.app",
@@ -40,25 +49,27 @@ io.use((socket, next) => {
     socket.user = decoded;
     next();
   } catch (error) {
-    console.error("Error during authentication:", error);
+    console.error("Error during authentication:", error.message);
     return next(new Error("Authentication error"));
   }
 });
 
+// Socket events
 io.on("connection", (socket) => {
-  console.log("A user connected: ", socket.user?.name || "Unknown User"); // Access the authenticated user
+  console.log("A user connected: ", socket.user?.name || "Unknown User");
 
-  // Listen for chat messages
   socket.on("chat message", (msg) => {
     console.log("Message received: ", msg);
-    io.emit("chat message", msg); // Broadcast the message to all clients
+    io.emit("chat message", msg); // Broadcast
   });
+
   socket.on("disconnect", () => {
     console.log("A user disconnected");
   });
 });
 
+// Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });

@@ -23,8 +23,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Routes
-app.use("/api/user", customAuthMiddleware, userRoutes);
-app.use("/api/tripplan", customAuthMiddleware, tripPlanRoutes);
+// Bypass auth middleware in development
+if (process.env.NODE_ENV === 'development') {
+  app.use("/api/user", userRoutes);
+  app.use("/api/tripplan", tripPlanRoutes);
+} else {
+  app.use("/api/user", customAuthMiddleware, userRoutes);
+  app.use("/api/tripplan", customAuthMiddleware, tripPlanRoutes);
+}
 
 module.exports = app;
