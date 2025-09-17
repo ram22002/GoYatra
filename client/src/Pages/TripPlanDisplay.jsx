@@ -1,40 +1,26 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaStar, FaMapMarkerAlt, FaClock, FaSun, FaLandmark, FaMap, FaBuilding } from "react-icons/fa";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { PlanContext } from "../components/context/TripContext";
-import { axiosInstance } from "../components/Axios/axios";
+import { useTrip } from "../components/context/TripContext";
+import useAxios from "../components/Axios/axios";
 import Loader from "../components/Other/Loader";
 import TripWeather from "./TripWeather";
 
 const TripPlanDisplay = () => {
   const { tripId } = useParams();
-  const { tripPlan, setTripPlan } = useContext(PlanContext);
+  const { tripPlan, setTripPlan } = useTrip();
   const [loading, setLoading] = useState(true);
   const [openDay, setOpenDay] = useState(null);
   const navigate = useNavigate();
+  const axiosInstance = useAxios();
 
-  // Weather API key (replace with your OpenWeatherMap API key)
-  // const WEATHER_API_KEY = import.meta.env.VITE_WEATHER_API_KEY; // Get from openweathermap.org
-  // const WEATHER_API_URL = "https://api.openweathermap.org/data/2.5/weather";
+
 
   useEffect(() => {
     const fetchTripDetails = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        alert("Please log in first.");
-        navigate("/login");
-        return;
-      }
-      setLoading(false);
-
       try {
-        // api call  /tripplan
-        const response = await axiosInstance.get(`/tripplan/${tripId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await axiosInstance.get(`/tripplan/${tripId}`);
 
         const { trip } = response.data;
 
@@ -54,28 +40,9 @@ const TripPlanDisplay = () => {
       }
     };
 
-    // const fetchWeather = async () => {
-    //   if (!tripPlan?.tripDetails?.location) return;
-    //   try {
-    //     const response = await axiosInstance.get(WEATHER_API_URL, {
-    //       params: {
-    //         q: tripPlan.tripDetails.location,
-    //         appid: WEATHER_API_KEY,
-    //         units: "metric", // Use Celsius
-    //       },
-    //     });
-    //     console.log("Weather data:", response.data);
-    //     setWeather(response.data);
-    //     setWeatherError(null);
-    //   } catch (error) {
-    //     console.error("Error fetching weather:", error);
-    //     setWeatherError("Unable to fetch weather data.");
-    //   }
-    // };
-
     fetchTripDetails();
-    // fetchWeather();
-  }, [tripId, setTripPlan, navigate, tripPlan?.tripDetails?.location]);
+
+  }, [tripId, setTripPlan, navigate]);
 
 
 

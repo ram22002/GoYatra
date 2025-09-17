@@ -1,6 +1,7 @@
-import React from "react";
-import { Route, Routes } from "react-router-dom";
-import { SignedIn, SignedOut, RedirectToSignIn, SignIn, SignUp } from '@clerk/clerk-react';
+
+import React, { useEffect } from "react";
+import { Route, Routes, Navigate } from "react-router-dom";
+import { SignedIn, SignedOut, RedirectToSignIn, SignIn, SignUp, useUser } from '@clerk/clerk-react';
 
 import Navbar from "./components/Other/Navbar";
 import Hero from "./Pages/Hero";
@@ -8,15 +9,49 @@ import { useTheme } from "./components/context/ThemeContext";
 import EnhancedTravelForm from "./Pages/TravelForm";
 import TripPlanDisplay from "./Pages/TripPlanDisplay";
 import Chat from "./Pages/Chat";
+import useAxios from "./components/Axios/axios";
 
 const App = () => {
   const { theme } = useTheme();
+  const { user } = useUser();
+  const axiosInstance = useAxios();
+
+  useEffect(() => {
+    const syncUserToDb = async () => {
+      if (user) {
+        try {
+          const response = await axiosInstance.post('/user/sync', {
+            userId: user.id,
+            email: user.primaryEmailAddress.emailAddress,
+            username: user.username,
+          });
+
+          if (response.status !== 200 && response.status !== 201) {
+            console.error('Failed to sync user');
+          }
+        } catch (error) {
+          console.error('Error syncing user:', error);
+        }
+      }
+    };
+
+    syncUserToDb();
+  }, [user, axiosInstance]);
 
   return (
     <div data-theme={theme} className="w-screen h-screen overflow-x-hidden">
       <Navbar />
       <Routes>
-        <Route path="/" element={<Hero />} />
+        <Route path="/" element={
+          <>
+            <SignedIn>
+              <Navigate to="/travel-preferences" />
+            </SignedIn>
+            <SignedOut>
+              <Hero />
+            </SignedOut>
+          </>
+        } />
         <Route
           path="/sign-in/*"
           element={
