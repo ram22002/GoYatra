@@ -8,7 +8,7 @@ const intentButtons = [
   { label: "🔁 Reset Password", message: "How can I reset my password?" },
   { label: "✈ Book Flight", message: "Help me book a flight to Paris." },
   { label: "☀ Weather in New York", message: "What's the weather in New York?" },
-  { label: "🏨 Hotel in Tokyo", message: "Help me book a flight to Paris." },
+  { label: "🏨 Hotel in Tokyo", message: "Help me book a hotel in Tokyo." },
   { label: "🌧 Forecast Berlin", message: "Will it rain tomorrow in Berlin?" },
   { label: "💱 Exchange USD to EUR", message: "What's the exchange rate for USD to EUR?" },
   { label: "🏙 Top spots in Sydney", message: "What are the top tourist spots in Sydney?" },

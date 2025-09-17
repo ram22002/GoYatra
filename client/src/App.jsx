@@ -1,7 +1,6 @@
-
 import React, { useEffect } from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
-import { SignedIn, SignedOut, RedirectToSignIn, SignIn, SignUp, useUser } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, RedirectToSignIn, useUser } from '@clerk/clerk-react';
 
 import Navbar from "./components/Other/Navbar";
 import Hero from "./Pages/Hero";
@@ -10,6 +9,8 @@ import EnhancedTravelForm from "./Pages/TravelForm";
 import TripPlanDisplay from "./Pages/TripPlanDisplay";
 import Chat from "./Pages/Chat";
 import useAxios from "./components/Axios/axios";
+import SignInPage from "./Pages/SignInPage";
+import SignUpPage from "./Pages/SignUpPage";
 
 const App = () => {
   const { theme } = useTheme();
@@ -52,22 +53,8 @@ const App = () => {
             </SignedOut>
           </>
         } />
-        <Route
-          path="/sign-in/*"
-          element={
-            <div className="flex justify-center items-center h-screen">
-              <SignIn routing="path" path="/sign-in" />
-            </div>
-          }
-        />
-        <Route
-          path="/sign-up/*"
-          element={
-            <div className="flex justify-center items-center h-screen">
-              <SignUp routing="path" path="/sign-up" />
-            </div>
-          }
-        />
+        <Route path="/sign-in" element={<SignInPage />} />
+        <Route path="/sign-up" element={<SignUpPage />} />
 
         <Route
           path="/travel-preferences"
