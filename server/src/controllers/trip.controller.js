@@ -1,47 +1,23 @@
 const mongoose = require("mongoose");
 const tripModel = require("../models/trip.model");
 const userModel = require("../models/user.model");
-const { chatSession } = require("../utils/AIModal"); // your AI integration
+const { chatSession } = require("../utils/AIModal");
 const { AI_PROMPT } = require("../utils/options");
 const { Clerk } = require('@clerk/clerk-sdk-node');
-
-const { fetchPlacePhoto } = require("../utils/fetchPlacePhoto"); // your helper function
+const { fetchPlacePhoto } = require("../utils/fetchPlacePhoto");
 
 const clerk = new Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
-
-// Helper function for user synchronization
-const syncUser = async (clerkId) => {
-  let user = await userModel.findOne({ clerkId });
-
-  if (!user) {
-    const clerkUser = await clerk.users.getUser(clerkId);
-    if (!clerkUser) {
-      throw new Error("User not found in Clerk");
-    }
-    const email = clerkUser.emailAddresses[0].emailAddress;
-
-    user = await userModel.findOne({ email: email });
-
-    if (user) {
-      user.clerkId = clerkId;
-      await user.save();
-    } else {
-      const username = clerkUser.username || email.split('@')[0];
-      user = await userModel.create({
-        clerkId: clerkId,
-        username: username,
-        email: email,
-      });
-    }
-  }
-  return user;
-};
 
 module.exports.createTrip = async (req, res) => {
   console.log("\n--- [CREATE TRIP START] ---");
   try {
     const { destination, days, budget, travelGroup } = req.body;
-    const clerkId = req.auth.userId;
+    const clerkId = req.auth.userId; // User is authenticated if we get here.
+
+    if (!clerkId) {
+        return res.status(401).json({ message: "User is not authenticated." });
+    }
+
     console.log("Request Body:", { destination, days, budget, travelGroup });
 
     if (!destination || !days || !budget || !travelGroup) {
@@ -54,8 +30,28 @@ module.exports.createTrip = async (req, res) => {
       return res.status(400).json({ message: "Max 7 days allowed" });
     }
 
-    const user = await syncUser(clerkId);
-    console.log("User synced/found:", user.email);
+    // --- The Fix: Find or Create User directly in the function ---
+    let user = await userModel.findOne({ clerkId });
+
+    if (!user) {
+      console.log("User not found in DB. Creating new user...");
+      const clerkUser = await clerk.users.getUser(clerkId);
+      if (!clerkUser) {
+        throw new Error("Failed to fetch user details from Clerk.");
+      }
+      const email = clerkUser.emailAddresses[0].emailAddress;
+      const username = clerkUser.username || email.split('@')[0];
+
+      user = await userModel.create({
+        clerkId,
+        username,
+        email,
+      });
+      console.log("New user created:", user.email);
+    } else {
+      console.log("User found in DB:", user.email);
+    }
+    // --- End of Fix ---
 
     // Generate AI Response
     const FINAL_PROMPT = AI_PROMPT.replace("{location}", destination)
@@ -65,11 +61,8 @@ module.exports.createTrip = async (req, res) => {
       .replace("{totaldays}", days);
 
     console.log("Sending prompt to AI...");
-    // console.log("Final Prompt:", FINAL_PROMPT); // Uncomment for debugging prompt issues
-
     const result = await chatSession.sendMessage(FINAL_PROMPT);
     const rawResponse = result?.response?.text();
-    console.log("--- Raw AI Response ---", rawResponse);
 
     if (!rawResponse) {
       console.error("Error: AI model returned an empty response.");
@@ -77,20 +70,16 @@ module.exports.createTrip = async (req, res) => {
     }
 
     const cleanedResponse = rawResponse.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-    console.log("--- Cleaned AI Response ---", cleanedResponse);
-
     let aiResponse;
     try {
       aiResponse = JSON.parse(cleanedResponse);
-      console.log("Successfully parsed AI response.");
     } catch (error) {
       console.error("Error: Failed to parse AI response. JSON is malformed.");
-      console.error("Underlying parse error:", error.message);
       return res.status(500).json({ message: "AI returned a malformed plan. Could not parse." });
     }
 
+    // Fetch real images for the plan
     console.log("Fetching images for itinerary and hotels...");
-    // Fetch real images
     if (aiResponse?.itinerary) {
       for (const day of Object.values(aiResponse.itinerary)) {
         for (const place of day.plan) {
@@ -105,6 +94,7 @@ module.exports.createTrip = async (req, res) => {
     }
     console.log("Image fetching complete.");
 
+    // Save the trip to the database
     console.log("Attempting to save trip to database...");
     const trip = await tripModel.create({
       userId: user._id,
@@ -129,6 +119,8 @@ module.exports.createTrip = async (req, res) => {
   }
 };
 
+// I am leaving getTrip as it was, as the findOrCreate logic is not critical here.
+// If a user can get a trip, they must already exist.
 module.exports.getTrip = async (req, res) => {
   try {
     let { tripId } = req.params;
@@ -146,9 +138,9 @@ module.exports.getTrip = async (req, res) => {
       return res.status(404).json({ message: "Trip not found" });
     }
 
-    const user = await syncUser(clerkId);
+    const user = await userModel.findOne({ clerkId });
 
-    if (trip.userId.toString() !== user._id.toString()) {
+    if (!user || trip.userId.toString() !== user._id.toString()) {
       return res
         .status(403)
         .json({ message: "You are not authorized to view this trip" });
