@@ -11,6 +11,7 @@ import {
 import { useTheme } from "../context/ThemeContext";
 import { THEMES } from "../Themes/index";
 import { SignedIn, SignedOut, UserButton } from "@clerk/clerk-react";
+import { dark } from "@clerk/themes";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -73,7 +74,7 @@ export default function Navbar() {
           </div>
 
           <SignedIn>
-            <UserButton afterSignOutUrl="/" />
+            <UserButton afterSignOutUrl="/" appearance={{ baseTheme: theme === 'dark' || theme === 'coffee' ? dark : undefined }} />
           </SignedIn>
           <SignedOut>
             <Link to="/sign-in" className="btn btn-ghost">
@@ -139,7 +140,7 @@ export default function Navbar() {
             </div>
 
             <SignedIn>
-              <UserButton afterSignOutUrl="/" />
+              <UserButton afterSignOutUrl="/" appearance={{ baseTheme: theme === 'dark' || theme === 'coffee' ? dark : undefined }} />
             </SignedIn>
             <SignedOut>
               <Link to="/sign-in" className="btn btn-ghost w-full justify-start" onClick={toggleMenu}>

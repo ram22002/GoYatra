@@ -5,7 +5,9 @@ const useAxios = () => {
   const { getToken } = useAuth();
 
   const axiosInstance = axios.create({
-    baseURL: "https://goyatra-htwr.onrender.com/api", // Corrected: Added /api prefix
+
+    baseURL: import.meta.env.VITE_MONGOO_URI, 
+
     withCredentials: true,
   });
 
