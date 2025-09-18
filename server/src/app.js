@@ -14,7 +14,7 @@ const tripPlanRoutes = require("./routes/tripPlanRoutes.js");
 // Middleware should be registered before routes
 app.use(
   cors({
-    origin: [process.env.CORS_URI || "https://go-yatra-team-async.vercel.app", "http://localhost:5173"],
+    origin: ["https://go-yatra-nine.vercel.app"],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   })
@@ -23,8 +23,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Routes
-app.use("/api/user", customAuthMiddleware, userRoutes);
-app.use("/api/tripplan", customAuthMiddleware, tripPlanRoutes);
+// Bypass auth middleware in development
+if (process.env.NODE_ENV === 'development') {
+  app.use("/api/user", userRoutes);
+  app.use("/api/tripplan", tripPlanRoutes);
+} else {
+  app.use("/api/user", customAuthMiddleware, userRoutes);
+  app.use("/api/tripplan", customAuthMiddleware, tripPlanRoutes);
+}
 
 module.exports = app;

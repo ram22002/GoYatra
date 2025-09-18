@@ -14,7 +14,7 @@ const http = require("http");
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CORS_URI || "https://go-yatra-team-async.vercel.app",
+    origin: "https://go-yatra-nine.vercel.app",
     methods: ["GET", "POST"],
     credentials: true,
   },
