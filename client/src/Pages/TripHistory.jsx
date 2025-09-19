@@ -11,7 +11,6 @@ const TripHistory = () => {
     const fetchTripHistory = async () => {
       try {
         const response = await axiosInstance.get("/tripplan/history");
-        // Remove duplicates based on trip._id
         const uniqueTrips = response.data.trips.reduce((acc, current) => {
           if (!acc.find((item) => item._id === current._id)) {
             acc.push(current);
@@ -29,7 +28,15 @@ const TripHistory = () => {
     fetchTripHistory();
   }, [axiosInstance]);
 
-  // Skeleton Loader for cards
+  const handleDelete = async (tripId) => {
+    try {
+      await axiosInstance.delete(`/tripplan/${tripId}`);
+      setTrips(trips.filter((trip) => trip._id !== tripId));
+    } catch (error) {
+      console.error("Error deleting trip:", error);
+    }
+  };
+
   const SkeletonCard = () => (
     <div className="card bg-base-100 shadow-xl animate-pulse">
       <div className="h-48 bg-base-300 rounded-t-xl"></div>
@@ -50,7 +57,6 @@ const TripHistory = () => {
           <h2 className="text-4xl font-extrabold mb-8 text-base-content">
             Trip History
           </h2>
-          {/* Skeleton grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[...Array(6)].map((_, i) => (
               <SkeletonCard key={i} />
@@ -104,6 +110,12 @@ const TripHistory = () => {
                       >
                         View Details
                       </Link>
+                      <button
+                        onClick={() => handleDelete(trip._id)}
+                        className="btn btn-error"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 </div>
