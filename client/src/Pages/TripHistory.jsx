@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import useAxios from "../components/Axios/axios";
+import DeleteAlert from "../components/Other/DeleteAlert";
 
 const TripHistory = () => {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false);
+  const [tripToDelete, setTripToDelete] = useState(null);
   const axiosInstance = useAxios();
 
   useEffect(() => {
@@ -28,15 +31,28 @@ const TripHistory = () => {
     fetchTripHistory();
   }, [axiosInstance]);
 
-  const handleDelete = async (tripId) => {
+  const handleDelete = (tripId) => {
+    setTripToDelete(tripId);
+    setShowDeleteAlert(true);
+  };
+
+  const confirmDelete = async () => {
     try {
-      await axiosInstance.delete(`/tripplan/${tripId}`);
-      setTrips(trips.filter((trip) => trip._id !== tripId));
+      await axiosInstance.delete(`/tripplan/${tripToDelete}`);
+      setTrips(trips.filter((trip) => trip._id !== tripToDelete));
+      setShowDeleteAlert(false);
+      setTripToDelete(null);
     } catch (error) {
       console.error("Error deleting trip:", error);
     }
   };
 
+  const cancelDelete = () => {
+    setShowDeleteAlert(false);
+    setTripToDelete(null);
+  };
+
+  // Skeleton Loader for cards
   const SkeletonCard = () => (
     <div className="card bg-base-100 shadow-xl animate-pulse">
       <div className="h-48 bg-base-300 rounded-t-xl"></div>
@@ -57,6 +73,7 @@ const TripHistory = () => {
           <h2 className="text-4xl font-extrabold mb-8 text-base-content">
             Trip History
           </h2>
+          {/* Skeleton grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[...Array(6)].map((_, i) => (
               <SkeletonCard key={i} />
@@ -134,6 +151,9 @@ const TripHistory = () => {
           </div>
         )}
       </div>
+      {showDeleteAlert && (
+        <DeleteAlert onConfirm={confirmDelete} onCancel={cancelDelete} />
+      )}
     </div>
   );
 };
