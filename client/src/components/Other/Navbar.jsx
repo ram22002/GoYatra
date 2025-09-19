@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Home, Moon, PhoneCall, PlaneTakeoff, Menu, X, History, User, LogOut, MessageSquare } from "lucide-react";
+import { Home, Moon, PlaneTakeoff, Menu, X, History, User, LogOut, MessageSquare } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import { THEMES } from "../Themes/index";
 import { SignedIn, SignedOut, useUser, useClerk } from "@clerk/clerk-react";
-import { dark } from "@clerk/themes";
 
 const CustomUserButton = () => {
   const { user } = useUser();
@@ -43,6 +42,40 @@ const CustomUserButton = () => {
   );
 };
 
+const MobileUserMenu = ({ toggleMenu }) => {
+  const { user } = useUser();
+  const { openUserProfile, signOut } = useClerk();
+
+  if (!user) return null;
+
+  return (
+    <div className="w-full">
+      <div className="flex items-center p-2 mb-2">
+        <div className="avatar mr-4">
+          <div className="w-10 rounded-full">
+            <img src={user.imageUrl} alt="User profile" />
+          </div>
+        </div>
+        <div>
+          <div className="font-bold">{user.fullName}</div>
+          <div className="text-sm opacity-50">{user.primaryEmailAddress.emailAddress}</div>
+        </div>
+      </div>
+      <Link to="/trip-history" className="btn btn-ghost btn-block justify-start" onClick={toggleMenu}>
+        <History className="w-4 h-4" />
+        History
+      </Link>
+      <button onClick={() => { openUserProfile(); toggleMenu(); }} className="btn btn-ghost btn-block justify-start">
+        <User className="w-4 h-4" />
+        Manage Account
+      </button>
+      <button onClick={() => { signOut({ redirectUrl: '/' }); toggleMenu(); }} className="btn btn-ghost btn-block justify-start">
+        <LogOut className="w-4 h-4" />
+        Sign Out
+      </button>
+    </div>
+  );
+}
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -108,11 +141,11 @@ export default function Navbar() {
       {isMenuOpen && (
         <div className="md:hidden bg-base-100">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-            <Link to="/" className="btn btn-ghost btn-block justify-start">
+            <Link to="/" className="btn btn-ghost btn-block justify-start" onClick={toggleMenu}>
               <Home />
               Home
             </Link>
-            <Link to="/chat" className="btn btn-ghost btn-block justify-start">
+            <Link to="/chat" className="btn btn-ghost btn-block justify-start" onClick={toggleMenu}>
               <MessageSquare />
               Customer Service
             </Link>
@@ -132,10 +165,10 @@ export default function Navbar() {
           
             <div className="border-t border-base-300 pt-4 mt-4">
               <SignedIn>
-                <CustomUserButton />
+                <MobileUserMenu toggleMenu={toggleMenu} />
               </SignedIn>
               <SignedOut>
-                <Link to="/sign-in" className="btn btn-primary btn-block">Sign In</Link>
+                <Link to="/sign-in" className="btn btn-primary btn-block" onClick={toggleMenu}>Sign In</Link>
               </SignedOut>
             </div>
           </div>

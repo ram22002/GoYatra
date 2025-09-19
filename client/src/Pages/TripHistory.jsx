@@ -11,7 +11,14 @@ const TripHistory = () => {
     const fetchTripHistory = async () => {
       try {
         const response = await axiosInstance.get("/tripplan/history");
-        setTrips(response.data.trips);
+        // Remove duplicates based on trip._id
+        const uniqueTrips = response.data.trips.reduce((acc, current) => {
+          if (!acc.find((item) => item._id === current._id)) {
+            acc.push(current);
+          }
+          return acc;
+        }, []);
+        setTrips(uniqueTrips);
       } catch (error) {
         console.error("Error fetching trip history:", error);
       } finally {
@@ -71,11 +78,8 @@ const TripHistory = () => {
                 )}`;
 
               return (
-                <div
-                  key={trip._id}
-                  className="card bg-base-100 shadow-xl image-full"
-                >
-                  <figure>
+                <div key={trip._id} className="card bg-base-100 shadow-xl overflow-hidden">
+                  <figure className="h-48">
                     <img
                       src={imageUrl}
                       alt={`View of ${trip.destination}`}
@@ -87,16 +91,12 @@ const TripHistory = () => {
                       }}
                     />
                   </figure>
-                  <div className="card-body justify-between">
-                    <div>
-                      <h3 className="card-title text-2xl">
-                        {trip.destination}
-                      </h3>
-                      <p>
-                        A journey of {trip.days}{" "}
-                        {trip.days > 1 ? "days" : "day"}.
-                      </p>
-                    </div>
+                  <div className="card-body">
+                    <h2 className="card-title">{trip.destination}</h2>
+                    <p>
+                      A journey of {trip.days}{" "}
+                      {trip.days > 1 ? "days" : "day"}.
+                    </p>
                     <div className="card-actions justify-end">
                       <Link
                         to={`/trip-display/${trip._id}`}
@@ -114,7 +114,7 @@ const TripHistory = () => {
           <div className="text-center py-16">
             <h3 className="text-2xl font-semibold">No trips found.</h3>
             <p className="text-base-content/70 mt-2">
-              Looks like you haven't planned any trips yet. Let's get started!
+              Looks like you haven\'t planned any trips yet. Let\'s get started!
             </p>
             <Link to="/travel-preferences" className="btn btn-primary mt-6">
               Plan a New Trip
