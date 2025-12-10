@@ -1,29 +1,28 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaStar, FaMapMarkerAlt, FaClock, FaSun, FaLandmark, FaMap, FaBuilding } from "react-icons/fa";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { FaStar, FaMapMarkerAlt, FaClock, FaSun, FaLandmark, FaMap } from "react-icons/fa";
+import { useParams, useNavigate } from "react-router-dom";
 import { useTrip } from "../components/context/TripContext";
 import useAxios from "../components/Axios/axios";
 import Loader from "../components/Other/Loader";
 import TripWeather from "./TripWeather";
+import Alert from "../components/Other/Alert";
 
 const TripPlanDisplay = () => {
   const { tripId } = useParams();
   const { tripPlan, setTripPlan } = useTrip();
   const [loading, setLoading] = useState(true);
   const [openDay, setOpenDay] = useState(null);
+  const [showAlert, setShowAlert] = useState(false);
+  const [hotelToBook, setHotelToBook] = useState(null);
   const navigate = useNavigate();
   const axiosInstance = useAxios();
-
-
 
   useEffect(() => {
     const fetchTripDetails = async () => {
       try {
         const response = await axiosInstance.get(`/tripplan/${tripId}`);
-
         const { trip } = response.data;
-
         setTripPlan({
           generatedPlan: trip.generatedPlan,
           tripDetails: {
@@ -39,29 +38,76 @@ const TripPlanDisplay = () => {
         setLoading(false);
       }
     };
-
     fetchTripDetails();
-
   }, [tripId, setTripPlan, navigate]);
 
+  const handleBookNowClick = (hotel) => {
+    setHotelToBook(hotel);
+    setShowAlert(true);
+  };
 
+  const handleAlertClose = () => {
+    setShowAlert(false);
+    setHotelToBook(null);
+  };
+
+  const handleAlertConfirm = () => {
+    if (hotelToBook) {
+      const searchString = encodeURIComponent(`${hotelToBook.hotelName}, ${tripPlan.tripDetails.location}`);
+      window.open(`https://www.booking.com/searchresults.en-gb.html?ss=${searchString}`, "_blank");
+    }
+    handleAlertClose();
+  };
 
   const downloadItinerary = () => {
-    if (!generatedPlan || !itinerary) return;
+    if (!tripPlan || !tripPlan.generatedPlan) return;
 
-    let itineraryText = `Trip to ${tripDetails.location}\nDuration: ${tripDetails.duration}\nTravelers: ${tripDetails.travelers}\nBudget: ${tripDetails.budget}\n\nItinerary:\n`;
+    const { tripDetails, generatedPlan } = tripPlan;
+    const { itinerary, hotelOptions } = generatedPlan;
 
-    Object.entries(itinerary).forEach(([day, details]) => {
-      //  console.log("Day:", day, "Details:", details); // Debugging line
+    let fileContent = `Trip to ${tripDetails.location}\n`;
+    fileContent += `Duration: ${tripDetails.duration}\n`;
+    fileContent += `Travelers: ${tripDetails.travelers}\n`;
+    fileContent += `Budget: ${tripDetails.budget}\n`;
+    fileContent += `\n========================================\n\n`;
 
-      itineraryText += `\n${day.toUpperCase()} - Theme: ${details.theme}\nBest Time to Visit: ${details.bestTimeToVisit}\nPlan:\n`;
-      details.plan.forEach((activity, index) => {
-        // console.log( "ACTIVITY__________---------->",activity)
-        itineraryText += `  ${index + 1}. ${activity.placeName}\n`;
-      });
-    });
+    // Add Hotel Options
+    if (hotelOptions && hotelOptions.length > 0) {
+        fileContent += `🏨 Hotel Options:\n\n`;
+        hotelOptions.forEach((hotel, index) => {
+            fileContent += `${index + 1}. ${hotel.hotelName}\n`;
+            fileContent += `   Address: ${hotel.hotelAddress || 'N/A'}\n`;
+            fileContent += `   Price: ${hotel.price || 'N/A'}\n`;
+            fileContent += `   Rating: ${hotel.rating || 'N/A'} / 5\n`;
+            fileContent += `   Description: ${hotel.description || 'N/A'}\n\n`;
+        });
+        fileContent += `========================================\n\n`;
+    }
 
-    const blob = new Blob([itineraryText], { type: "text/plain" });
+    // Add Itinerary
+    if (itinerary && Object.keys(itinerary).length > 0) {
+        fileContent += `📅 Your Itinerary:\n`;
+        Object.entries(itinerary).forEach(([day, details]) => {
+            fileContent += `\n--- ${day.toUpperCase()} - Theme: ${details.theme} ---\n`;
+            fileContent += `Best Time to Visit: ${details.bestTimeToVisit}\n\n`;
+            fileContent += `Plan for the day:\n`;
+            if (details.plan && details.plan.length > 0) {
+                details.plan.forEach((activity, index) => {
+                    fileContent += `  ${index + 1}. ${activity.placeName}\n`;
+                    fileContent += `     Details: ${activity.placeDetails || 'N/A'}\n`;
+                    fileContent += `     Ticket Price: ${activity.ticketPricing || 'N/A'}\n`;
+                    fileContent += `     Rating: ${activity.rating || 'N/A'} / 5\n`;
+                    fileContent += `     Suggested Time: ${activity.timeTravel || 'N/A'}\n\n`;
+                });
+            } else {
+                fileContent += "  No plans for this day.\n\n";
+            }
+        });
+    } else {
+        fileContent += "No itinerary available.\n";
+    }
+
+    const blob = new Blob([fileContent], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement("a");
@@ -73,9 +119,6 @@ const TripPlanDisplay = () => {
     URL.revokeObjectURL(url);
   };
 
-
-
-  // Animation Variants
   const cardVariants = {
     hidden: { opacity: 0, y: 30, rotate: 1 },
     visible: { opacity: 1, y: 0, rotate: 0, transition: { duration: 0.5, ease: "easeOut" } },
@@ -94,7 +137,6 @@ const TripPlanDisplay = () => {
 
   if (loading) {
     return <Loader tripDetails={tripPlan?.tripDetails} />;
-
   }
 
   if (!tripPlan || !tripPlan.tripDetails || !tripPlan.generatedPlan) {
@@ -102,36 +144,38 @@ const TripPlanDisplay = () => {
   }
 
   const { tripDetails, generatedPlan } = tripPlan;
-  // console.log("Trip Details:", tripDetails);
-  // console.log("Generated Plan:", generatedPlan);
   const { hotelOptions, itinerary } = generatedPlan;
-  // console.log(hotelOptions)
 
   const formatToINR = (priceStr) => {
-    const exchangeRate = 83.5;
-
-    if (typeof priceStr !== "string") return "N/A";
-
-    // Extract numbers using RegExp
-    const matches = priceStr.match(/\d+/g); // gets ["10", "20"]
-    if (!matches || matches.length === 0) return "N/A";
-
-    // Use average or minimum price
-    const numericPrice = (parseInt(matches[0]) + (parseInt(matches[1]) || 0)) / (matches[1] ? 2 : 1);
-
-    const inrPrice = numericPrice * exchangeRate;
-    return inrPrice.toLocaleString("en-IN", {
-      style: "currency",
-      currency: "INR",
-    });
+    if (typeof priceStr !== 'string') {
+      return 'Price not available';
+    }
+    const matches = priceStr.replace(/,/g, '').match(/(\d+(\.\d+)?)/);
+    if (!matches) {
+      return 'Price not specified';
+    }
+    const numericPrice = parseFloat(matches[0]);
+    if (isNaN(numericPrice)) {
+      return 'Invalid price format';
+    }
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(numericPrice);
   };
+
   return (
     <div className="max-h-screen overflow-x-hidden relative">
+      {showAlert && (
+        <Alert
+          title="Booking Confirmation"
+          message="This trip plan is AI-generated. Before booking, please double-check the hotel's location. This website is not responsible for incorrect bookings."
+          onClose={handleAlertClose}
+          onConfirm={handleAlertConfirm}
+        />
+      )}
       <div className="max-w-7xl mt-15 mx-auto py-12 px-6">
-
-
-
-        {/* Trip Details */}
         <motion.section
           className="card bg-base-100 shadow-2xl mb-10 rounded-2xl border border-base-300 overflow-hidden"
           initial={{ opacity: 0, scale: 0.95 }}
@@ -163,7 +207,6 @@ const TripPlanDisplay = () => {
           </div>
         </motion.section>
 
-        {/* Weather */}
         <motion.section
           className="card bg-base-100 shadow-2xl mb-10 rounded-2xl border border-base-300 overflow-hidden"
           initial={{ opacity: 0, scale: 0.95 }}
@@ -173,13 +216,22 @@ const TripPlanDisplay = () => {
           <TripWeather tripId={tripId} tripPlan={tripPlan} setTripPlan={setTripPlan} />
         </motion.section>
 
-        {/* Hotel Options */}
         <section className="mb-12">
-          <h2 className="text-4xl font-extrabold mb-8 flex items-center">
-            <FaStar className="mr-3" /> Luxurious Stays 🏨
-          </h2>
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-4xl font-extrabold flex items-center">
+              <FaStar className="mr-3" /> Luxurious Stays 🏨
+            </h2>
+            <motion.button
+              className="btn btn-primary"
+              onClick={() => window.open(`https://www.booking.com/searchresults.en-gb.html?ss=${tripDetails?.location}`, "_blank")}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Search All Hotels
+            </motion.button>
+          </div>
           <motion.div
-            className="grid grid-cols-1 lg:grid-cols-3   gap-8"
+            className="grid grid-cols-1 lg:grid-cols-3 gap-8"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
@@ -208,22 +260,18 @@ const TripPlanDisplay = () => {
                     <p className="flex items-center ">
                       <FaMapMarkerAlt className="mr-2" /> {hotel.hotelAddress || "N/A"}
                     </p>
-                    <p className="font-semibold text-lg  flex items-center">
+                    <p className="font-semibold text-lg flex items-center">
                       {formatToINR(hotel.price)}
                     </p>
-                    <p className="text-sm  line-clamp-2">{hotel.description || "No description available"}</p>
+                    <p className="text-sm line-clamp-2">{hotel.description || "No description available"}</p>
                     <div className="card-actions flex justify-between">
                       <motion.button
                         className="btn bg-base-300 rounded-full px-6"
                         variants={buttonVariants}
                         whileHover="hover"
                         whileTap="tap"
-                        onClick={() => {
-                          const hotelName = encodeURIComponent(hotel.hotelName || tripDetails.location);
-                          window.open(`https://www.booking.com/searchresults.en-gb.html?aid=8020813&amp;ss=${hotelName}`, "_blank");
-                        }}
+                        onClick={() => handleBookNowClick(hotel)}
                       >
-
                         Book Now
                       </motion.button>
                       <motion.button
@@ -247,54 +295,7 @@ const TripPlanDisplay = () => {
             )}
           </motion.div>
         </section>
-        {/* More Options of Hotel */}
-        <motion.section
-          className="card bg-base-100 shadow-xl mb-10 rounded-2xl border border-base-300 overflow-hidden"
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-        >
-          <div className="card-body p-6 flex flex-col md:flex-row items-start md:items-center gap-4">
-            <FaBuilding className="text-4xl text-purple-600" />
-            <div className="md:flex items-center justify-between flex-1">
-              <div className="">
-                <h3 className="text-2xl font-bold   mb-2">
-                  Find More Options in{" "}
-                  <span className="text-purple-600">
-                    {tripDetails?.location || "N/A"}
-                  </span>
-                </h3>
-                <p className="text-sm  mb-4">
-                  Discover the best hotel deals and stays tailored for your trip.
-                </p>
-              </div>
-              <Link
-                to={`https://www.booking.com/searchresults.en-gb.html?aid=8020813&ss=${tripDetails?.location}`}
-                className="inline-flex items-center gap-2 w-fit bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm px-4 py-2 rounded-lg transition duration-300"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Find Hotels
-                <svg
-                  className="h-4 w-4"
-                  aria-hidden="true"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 14 10"
-                >
-                  <path
-                    stroke="currentColor"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M1 5h12m0 0L9 1m4 4L9 9"
-                  />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        </motion.section>
-        {/* Itinerary */}
+
         <section>
           <div className="md:flex items-center justify-between ">
             <h2 className="text-4xl font-extrabold mb-8 flex items-center">
@@ -305,7 +306,7 @@ const TripPlanDisplay = () => {
                 onClick={downloadItinerary}
                 variants={buttonVariants}
                 whileTap="tap"
-                className="btn bg-primary/20 hover:scale-105 transition-all duration-200 animate-bounce  mt-4"
+                className="btn bg-primary/20 hover:scale-105 transition-all duration-200 animate-bounce mt-4"
               >
                 Download Itinerary 📄
               </motion.button>
@@ -371,8 +372,7 @@ const TripPlanDisplay = () => {
                                   </svg>
                                 </div>
                                 <motion.div
-                                  className={`timeline-${index % 2 === 0 ? "start" : "end"
-                                    } card bg-base-100 shadow-lg rounded-xl p-5 hover:bg-base-200 transition-colors w-full max-w-md lg:max-w-lg mx-4 my-2`}
+                                  className={`timeline-${index % 2 === 0 ? "start" : "end"} card bg-base-100 shadow-lg rounded-xl p-5 hover:bg-base-200 transition-colors w-full max-w-md lg:max-w-lg mx-4 my-2`}
                                   variants={cardVariants}
                                   initial="hidden"
                                   animate="visible"
@@ -388,7 +388,7 @@ const TripPlanDisplay = () => {
                                       <h4 className="text-lg font-semibold">{place.placeName || "Unknown Place"}</h4>
                                       <p className="text-sm mt-1 line-clamp-2">{place.placeDetails || "No details available"}</p>
                                       <div className="flex items-center space-x-3 mt-2">
-                                        <span className="badge bg-base-300 text-sm">
+                                        <span className="badge bg-base-300 text-sm" style={{ whiteSpace: 'nowrap', padding: '0.5em 1em' }}>
                                           {place.ticketPricing || "N/A"}
                                         </span>
                                         <span className="badge bg-base-300 flex items-center text-sm">
@@ -416,7 +416,6 @@ const TripPlanDisplay = () => {
                                       >
                                         <FaMap className="mr-2" /> View Map
                                       </motion.button>
-
                                     </div>
                                   </div>
                                 </motion.div>

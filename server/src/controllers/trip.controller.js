@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 const tripModel = require("../models/trip.model");
 const userModel = require("../models/user.model");
@@ -7,6 +8,22 @@ const { Clerk } = require('@clerk/clerk-sdk-node');
 const { fetchPlacePhoto } = require("../utils/fetchPlacePhoto");
 
 const clerk = new Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
+
+// A recursive function to find a key anywhere in the nested AI response object.
+const findKey = (obj, key) => {
+    if (obj && typeof obj === 'object') {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            return obj[key];
+        }
+        for (const k in obj) {
+            const result = findKey(obj[k], key);
+            if (result) {
+                return result;
+            }
+        }
+    }
+    return null;
+};
 
 const findOrCreateUser = async (clerkId) => {
   let user = await userModel.findOne({ clerkId });
@@ -32,6 +49,17 @@ const findOrCreateUser = async (clerkId) => {
   return user;
 };
 
+// A robust function to build a valid plan item, providing defaults for missing fields.
+const createValidPlace = (placeData) => ({
+    placeName: placeData.placeName || "Unnamed Place",
+    placeDetails: placeData.placeDetails || "Details not provided by AI.",
+    geoCoordinates: placeData.geoCoordinates || { latitude: 0, longitude: 0 },
+    ticketPricing: placeData.ticketPricing || "Not Specified",
+    rating: placeData.rating || 3,
+    timeTravel: placeData.timeTravel || "Not Specified",
+    placeImageUrl: placeData.placeImageUrl || ''
+});
+
 module.exports.createTrip = async (req, res) => {
   console.log("\n--- [CREATE TRIP START] ---");
   try {
@@ -48,26 +76,91 @@ module.exports.createTrip = async (req, res) => {
     const FINAL_PROMPT = AI_PROMPT.replace("{location}", destination)
       .replace("{totalDays}", days)
       .replace("{traveler}", travelGroup)
-      .replace("{budget}", budget)
-      .replace("{totaldays}", days);
+      .replace("{budget}", budget);
 
+    console.log("Sending prompt to AI...");
     const result = await chatSession.sendMessage(FINAL_PROMPT);
     const rawResponse = result?.response?.text();
     const cleanedResponse = rawResponse.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-    let aiResponse = JSON.parse(cleanedResponse);
+    
+    let aiResponse;
+    try {
+        aiResponse = JSON.parse(cleanedResponse);
+    } catch (e) {
+        console.error("Fatal: AI returned invalid JSON.", cleanedResponse);
+        throw new Error("The AI service returned a response that was not valid JSON.");
+    }
 
-    // Fetch images
-    if (aiResponse?.itinerary) {
-      for (const day of Object.values(aiResponse.itinerary)) {
-        for (const place of day.plan) {
-          place.placeImageUrl = await fetchPlacePhoto(place.placeName);
+    const finalGeneratedPlan = {
+        tripDetails: { location: destination, duration: days, travelers: travelGroup, budget: budget },
+        hotelOptions: [],
+        itinerary: {}
+    };
+    
+    // Use the robust recursive findKey function to locate itinerary and hotel options
+    let itinerarySource = findKey(aiResponse, 'itinerary');
+    let hotelOptionsSource = findKey(aiResponse, 'hotelOptions');
+
+    // If AI gives an array for itinerary, convert it to a map object { day1: ..., day2: ... }
+    if (Array.isArray(itinerarySource)) {
+        const itineraryMap = {};
+        itinerarySource.forEach(day => {
+            if (day && day.day) {
+              itineraryMap[`day${day.day}`] = day;
+            }
+        });
+        itinerarySource = itineraryMap;
+    }
+
+    // Defensively build itinerary from the source (now guaranteed to be an object or null)
+    if (itinerarySource && typeof itinerarySource === 'object') {
+      console.log("Processing itinerary...");
+      for (const dayKey in itinerarySource) {
+        const dayData = itinerarySource[dayKey];
+        if (dayData && typeof dayData === 'object') {
+          const places = dayData.plan || dayData.places; // Handle both 'plan' and 'places' keys
+          const validPlaces = Array.isArray(places) ? places.map(createValidPlace) : [];
+
+          finalGeneratedPlan.itinerary[dayKey] = {
+              theme: dayData.theme || `Exploring ${destination}`,
+              bestTimeToVisit: dayData.bestTimeToVisit || "Anytime",
+              plan: validPlaces
+          };
         }
       }
+    } else {
+        console.log("No valid itinerary source found in AI response.");
     }
-    if (aiResponse?.hotelOptions) {
-      for (const hotel of aiResponse.hotelOptions) {
-        hotel.hotelImageUrl = await fetchPlacePhoto(hotel.hotelName);
-      }
+
+    // Defensively build hotel options
+    if (Array.isArray(hotelOptionsSource)) {
+        finalGeneratedPlan.hotelOptions = hotelOptionsSource.map(hotel => ({
+            hotelName: hotel.hotelName || "Unnamed Hotel",
+            hotelAddress: hotel.hotelAddress || "Address not provided",
+            price: hotel.price || "Not Specified",
+            rating: hotel.rating || 3,
+            description: hotel.description || "No description available.",
+            geoCoordinates: hotel.geoCoordinates || { latitude: 0, longitude: 0 },
+            hotelImageUrl: hotel.hotelImageUrl || ''
+        }));
+    }
+
+    // Fetch images in a separate, non-blocking loop
+    for (const dayKey in finalGeneratedPlan.itinerary) {
+        for (const place of finalGeneratedPlan.itinerary[dayKey].plan) {
+            if (place.placeName !== "Unnamed Place") {
+                try {
+                    place.placeImageUrl = await fetchPlacePhoto(place.placeName);
+                } catch (e) { console.error(`Image fetch failed for ${place.placeName}`)}
+            }
+        }
+    }
+    for (const hotel of finalGeneratedPlan.hotelOptions) {
+        if (hotel.hotelName !== "Unnamed Hotel") {
+            try {
+                hotel.hotelImageUrl = await fetchPlacePhoto(hotel.hotelName);
+            } catch (e) { console.error(`Image fetch failed for ${hotel.hotelName}`)}
+        }
     }
 
     const trip = await tripModel.create({
@@ -76,7 +169,7 @@ module.exports.createTrip = async (req, res) => {
       days,
       budget,
       travelGroup,
-      generatedPlan: aiResponse,
+      generatedPlan: finalGeneratedPlan,
     });
 
     await userModel.findByIdAndUpdate(user._id, { $push: { trips: trip._id } });
@@ -89,6 +182,7 @@ module.exports.createTrip = async (req, res) => {
     res.status(500).json({ message: `Failed to generate trip: ${error.message}` });
   }
 };
+
 
 module.exports.getTrip = async (req, res) => {
   try {
@@ -122,8 +216,6 @@ module.exports.getTripHistory = async (req, res) => {
     const clerkId = req.auth.userId;
     const user = await findOrCreateUser(clerkId);
 
-    // If a user is newly created, they won't have trips, so this will be empty.
-    // If they exist, we find all trips linked to their local DB ID.
     const trips = await tripModel.find({ userId: user._id });
 
     return res.status(200).json({ trips });
