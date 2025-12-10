@@ -135,29 +135,39 @@ const TripPlanDisplay = () => {
   }
 
   const { tripDetails, generatedPlan } = tripPlan;
-  // console.log("Trip Details:", tripDetails);
-  // console.log("Generated Plan:", generatedPlan);
   const { hotelOptions, itinerary } = generatedPlan;
-  // console.log(hotelOptions)
 
   const formatToINR = (priceStr) => {
-    const exchangeRate = 83.5;
+    // This function now assumes the AI provides a string that contains a numeric value,
+    // potentially with currency symbols or other text (e.g., "INR 15000", "$250", "12000 per night").
+    // It extracts the first valid number and formats it as INR.
+    
+    if (typeof priceStr !== 'string') {
+      return 'Price not available';
+    }
 
-    if (typeof priceStr !== "string") return "N/A";
+    // Regex to find the first sequence of digits, optionally with a decimal part.
+    // It ignores currency symbols, commas, and other text.
+    const matches = priceStr.replace(/,/g, '').match(/(\d+(\.\d+)?)/);
 
-    // Extract numbers using RegExp
-    const matches = priceStr.match(/\d+/g); // gets ["10", "20"]
-    if (!matches || matches.length === 0) return "N/A";
+    if (!matches) {
+      return 'Price not specified';
+    }
 
-    // Use average or minimum price
-    const numericPrice = (parseInt(matches[0]) + (parseInt(matches[1]) || 0)) / (matches[1] ? 2 : 1);
+    const numericPrice = parseFloat(matches[0]);
 
-    const inrPrice = numericPrice * exchangeRate;
-    return inrPrice.toLocaleString("en-IN", {
-      style: "currency",
-      currency: "INR",
-    });
+    if (isNaN(numericPrice)) {
+      return 'Invalid price format';
+    }
+
+    // Format the extracted number into the Indian currency format (e.g., ₹1,50,000).
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0, // Hides the paise part for cleaner display
+    }).format(numericPrice);
   };
+  
   return (
     <div className="max-h-screen overflow-x-hidden relative">
       <div className="max-w-7xl mt-15 mx-auto py-12 px-6">

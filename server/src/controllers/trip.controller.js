@@ -9,6 +9,22 @@ const { fetchPlacePhoto } = require("../utils/fetchPlacePhoto");
 
 const clerk = new Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
 
+// A recursive function to find a key anywhere in the nested AI response object.
+const findKey = (obj, key) => {
+    if (obj && typeof obj === 'object') {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            return obj[key];
+        }
+        for (const k in obj) {
+            const result = findKey(obj[k], key);
+            if (result) {
+                return result;
+            }
+        }
+    }
+    return null;
+};
+
 const findOrCreateUser = async (clerkId) => {
   let user = await userModel.findOne({ clerkId });
 
@@ -60,8 +76,7 @@ module.exports.createTrip = async (req, res) => {
     const FINAL_PROMPT = AI_PROMPT.replace("{location}", destination)
       .replace("{totalDays}", days)
       .replace("{traveler}", travelGroup)
-      .replace("{budget}", budget)
-      .replace("{totaldays}", days);
+      .replace("{budget}", budget);
 
     console.log("Sending prompt to AI...");
     const result = await chatSession.sendMessage(FINAL_PROMPT);
@@ -77,23 +92,27 @@ module.exports.createTrip = async (req, res) => {
     }
 
     const finalGeneratedPlan = {
-        tripDetails: aiResponse.tripDetails || { location: destination, duration: days, travelers: travelGroup, budget: budget },
+        tripDetails: { location: destination, duration: days, travelers: travelGroup, budget: budget },
         hotelOptions: [],
         itinerary: {}
     };
     
-    let itinerarySource = aiResponse.itinerary;
+    // Use the robust recursive findKey function to locate itinerary and hotel options
+    let itinerarySource = findKey(aiResponse, 'itinerary');
+    let hotelOptionsSource = findKey(aiResponse, 'hotelOptions');
 
-    // If AI gives an array, convert it to a map object { day1: ..., day2: ... }
+    // If AI gives an array for itinerary, convert it to a map object { day1: ..., day2: ... }
     if (Array.isArray(itinerarySource)) {
         const itineraryMap = {};
         itinerarySource.forEach(day => {
-            itineraryMap[`day${day.day}`] = day;
+            if (day && day.day) {
+              itineraryMap[`day${day.day}`] = day;
+            }
         });
         itinerarySource = itineraryMap;
     }
 
-    // Defensively build itinerary from the source (now guaranteed to be an object)
+    // Defensively build itinerary from the source (now guaranteed to be an object or null)
     if (itinerarySource && typeof itinerarySource === 'object') {
       console.log("Processing itinerary...");
       for (const dayKey in itinerarySource) {
@@ -114,8 +133,8 @@ module.exports.createTrip = async (req, res) => {
     }
 
     // Defensively build hotel options
-    if (Array.isArray(aiResponse.hotelOptions)) {
-        finalGeneratedPlan.hotelOptions = aiResponse.hotelOptions.map(hotel => ({
+    if (Array.isArray(hotelOptionsSource)) {
+        finalGeneratedPlan.hotelOptions = hotelOptionsSource.map(hotel => ({
             hotelName: hotel.hotelName || "Unnamed Hotel",
             hotelAddress: hotel.hotelAddress || "Address not provided",
             price: hotel.price || "Not Specified",
