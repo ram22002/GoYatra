@@ -47,21 +47,54 @@ const TripPlanDisplay = () => {
 
 
   const downloadItinerary = () => {
-    if (!generatedPlan || !itinerary) return;
+    if (!tripPlan || !tripPlan.generatedPlan) return;
 
-    let itineraryText = `Trip to ${tripDetails.location}\nDuration: ${tripDetails.duration}\nTravelers: ${tripDetails.travelers}\nBudget: ${tripDetails.budget}\n\nItinerary:\n`;
+    const { tripDetails, generatedPlan } = tripPlan;
+    const { itinerary, hotelOptions } = generatedPlan;
 
-    Object.entries(itinerary).forEach(([day, details]) => {
-      //  console.log("Day:", day, "Details:", details); // Debugging line
+    let fileContent = `Trip to ${tripDetails.location}\n`;
+    fileContent += `Duration: ${tripDetails.duration}\n`;
+    fileContent += `Travelers: ${tripDetails.travelers}\n`;
+    fileContent += `Budget: ${tripDetails.budget}\n`;
+    fileContent += `\n========================================\n\n`;
 
-      itineraryText += `\n${day.toUpperCase()} - Theme: ${details.theme}\nBest Time to Visit: ${details.bestTimeToVisit}\nPlan:\n`;
-      details.plan.forEach((activity, index) => {
-        // console.log( "ACTIVITY__________---------->",activity)
-        itineraryText += `  ${index + 1}. ${activity.placeName}\n`;
-      });
-    });
+    // Add Hotel Options
+    if (hotelOptions && hotelOptions.length > 0) {
+        fileContent += `🏨 Hotel Options:\n\n`;
+        hotelOptions.forEach((hotel, index) => {
+            fileContent += `${index + 1}. ${hotel.hotelName}\n`;
+            fileContent += `   Address: ${hotel.hotelAddress || 'N/A'}\n`;
+            fileContent += `   Price: ${hotel.price || 'N/A'}\n`;
+            fileContent += `   Rating: ${hotel.rating || 'N/A'} / 5\n`;
+            fileContent += `   Description: ${hotel.description || 'N/A'}\n\n`;
+        });
+        fileContent += `========================================\n\n`;
+    }
 
-    const blob = new Blob([itineraryText], { type: "text/plain" });
+    // Add Itinerary
+    if (itinerary && Object.keys(itinerary).length > 0) {
+        fileContent += `📅 Your Itinerary:\n`;
+        Object.entries(itinerary).forEach(([day, details]) => {
+            fileContent += `\n--- ${day.toUpperCase()} - Theme: ${details.theme} ---\n`;
+            fileContent += `Best Time to Visit: ${details.bestTimeToVisit}\n\n`;
+            fileContent += `Plan for the day:\n`;
+            if (details.plan && details.plan.length > 0) {
+                details.plan.forEach((activity, index) => {
+                    fileContent += `  ${index + 1}. ${activity.placeName}\n`;
+                    fileContent += `     Details: ${activity.placeDetails || 'N/A'}\n`;
+                    fileContent += `     Ticket Price: ${activity.ticketPricing || 'N/A'}\n`;
+                    fileContent += `     Rating: ${activity.rating || 'N/A'} / 5\n`;
+                    fileContent += `     Suggested Time: ${activity.timeTravel || 'N/A'}\n\n`;
+                });
+            } else {
+                fileContent += "  No plans for this day.\n\n";
+            }
+        });
+    } else {
+        fileContent += "No itinerary available.\n";
+    }
+
+    const blob = new Blob([fileContent], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
 
     const link = document.createElement("a");
@@ -269,7 +302,7 @@ const TripPlanDisplay = () => {
                 </p>
               </div>
               <Link
-                to={`https://www.booking.com/searchresults.en-gb.html?aid=8020813&ss=${tripDetails?.location}`}
+                to={`https://www.booking.com/searchresults.html?ss=${tripDetails?.location}`}
                 className="inline-flex items-center gap-2 w-fit bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm px-4 py-2 rounded-lg transition duration-300"
                 target="_blank"
                 rel="noreferrer"
@@ -388,7 +421,7 @@ const TripPlanDisplay = () => {
                                       <h4 className="text-lg font-semibold">{place.placeName || "Unknown Place"}</h4>
                                       <p className="text-sm mt-1 line-clamp-2">{place.placeDetails || "No details available"}</p>
                                       <div className="flex items-center space-x-3 mt-2">
-                                        <span className="badge bg-base-300 text-sm">
+                                        <span className="badge bg-base-300 text-sm" style={{ whiteSpace: 'nowrap', padding: '0.5em 1em' }}>
                                           {place.ticketPricing || "N/A"}
                                         </span>
                                         <span className="badge bg-base-300 flex items-center text-sm">

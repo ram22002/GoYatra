@@ -81,19 +81,36 @@ module.exports.createTrip = async (req, res) => {
         hotelOptions: [],
         itinerary: {}
     };
+    
+    let itinerarySource = aiResponse.itinerary;
 
-    // Defensively build itinerary
-    if (Array.isArray(aiResponse.itinerary)) {
-        for (const dayData of aiResponse.itinerary) {
-            const dayKey = `day${dayData.day}`;
-            const validPlaces = Array.isArray(dayData.places) ? dayData.places.map(createValidPlace) : [];
+    // If AI gives an array, convert it to a map object { day1: ..., day2: ... }
+    if (Array.isArray(itinerarySource)) {
+        const itineraryMap = {};
+        itinerarySource.forEach(day => {
+            itineraryMap[`day${day.day}`] = day;
+        });
+        itinerarySource = itineraryMap;
+    }
 
-            finalGeneratedPlan.itinerary[dayKey] = {
-                theme: dayData.theme || `A Day of Exploration in ${destination}`,
-                bestTimeToVisit: dayData.bestTimeToVisit || "Anytime",
-                plan: validPlaces
-            };
+    // Defensively build itinerary from the source (now guaranteed to be an object)
+    if (itinerarySource && typeof itinerarySource === 'object') {
+      console.log("Processing itinerary...");
+      for (const dayKey in itinerarySource) {
+        const dayData = itinerarySource[dayKey];
+        if (dayData && typeof dayData === 'object') {
+          const places = dayData.plan || dayData.places; // Handle both 'plan' and 'places' keys
+          const validPlaces = Array.isArray(places) ? places.map(createValidPlace) : [];
+
+          finalGeneratedPlan.itinerary[dayKey] = {
+              theme: dayData.theme || `Exploring ${destination}`,
+              bestTimeToVisit: dayData.bestTimeToVisit || "Anytime",
+              plan: validPlaces
+          };
         }
+      }
+    } else {
+        console.log("No valid itinerary source found in AI response.");
     }
 
     // Defensively build hotel options
