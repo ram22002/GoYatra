@@ -1,29 +1,28 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaStar, FaMapMarkerAlt, FaClock, FaSun, FaLandmark, FaMap, FaBuilding } from "react-icons/fa";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { FaStar, FaMapMarkerAlt, FaClock, FaSun, FaLandmark, FaMap } from "react-icons/fa";
+import { useParams, useNavigate } from "react-router-dom";
 import { useTrip } from "../components/context/TripContext";
 import useAxios from "../components/Axios/axios";
 import Loader from "../components/Other/Loader";
 import TripWeather from "./TripWeather";
+import Alert from "../components/Other/Alert";
 
 const TripPlanDisplay = () => {
   const { tripId } = useParams();
   const { tripPlan, setTripPlan } = useTrip();
   const [loading, setLoading] = useState(true);
   const [openDay, setOpenDay] = useState(null);
+  const [showAlert, setShowAlert] = useState(false);
+  const [hotelToBook, setHotelToBook] = useState(null);
   const navigate = useNavigate();
   const axiosInstance = useAxios();
-
-
 
   useEffect(() => {
     const fetchTripDetails = async () => {
       try {
         const response = await axiosInstance.get(`/tripplan/${tripId}`);
-
         const { trip } = response.data;
-
         setTripPlan({
           generatedPlan: trip.generatedPlan,
           tripDetails: {
@@ -39,12 +38,26 @@ const TripPlanDisplay = () => {
         setLoading(false);
       }
     };
-
     fetchTripDetails();
-
   }, [tripId, setTripPlan, navigate]);
 
+  const handleBookNowClick = (hotel) => {
+    setHotelToBook(hotel);
+    setShowAlert(true);
+  };
 
+  const handleAlertClose = () => {
+    setShowAlert(false);
+    setHotelToBook(null);
+  };
+
+  const handleAlertConfirm = () => {
+    if (hotelToBook) {
+      const searchString = encodeURIComponent(`${hotelToBook.hotelName}, ${tripPlan.tripDetails.location}`);
+      window.open(`https://www.booking.com/searchresults.en-gb.html?ss=${searchString}`, "_blank");
+    }
+    handleAlertClose();
+  };
 
   const downloadItinerary = () => {
     if (!tripPlan || !tripPlan.generatedPlan) return;
@@ -106,9 +119,6 @@ const TripPlanDisplay = () => {
     URL.revokeObjectURL(url);
   };
 
-
-
-  // Animation Variants
   const cardVariants = {
     hidden: { opacity: 0, y: 30, rotate: 1 },
     visible: { opacity: 1, y: 0, rotate: 0, transition: { duration: 0.5, ease: "easeOut" } },
@@ -127,7 +137,6 @@ const TripPlanDisplay = () => {
 
   if (loading) {
     return <Loader tripDetails={tripPlan?.tripDetails} />;
-
   }
 
   if (!tripPlan || !tripPlan.tripDetails || !tripPlan.generatedPlan) {
@@ -141,33 +150,32 @@ const TripPlanDisplay = () => {
     if (typeof priceStr !== 'string') {
       return 'Price not available';
     }
-
     const matches = priceStr.replace(/,/g, '').match(/(\d+(\.\d+)?)/);
-
     if (!matches) {
       return 'Price not specified';
     }
-
     const numericPrice = parseFloat(matches[0]);
-
     if (isNaN(numericPrice)) {
       return 'Invalid price format';
     }
-
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
-      maximumFractionDigits: 0, // Hides the paise part for cleaner display
+      maximumFractionDigits: 0,
     }).format(numericPrice);
   };
-  
+
   return (
     <div className="max-h-screen overflow-x-hidden relative">
+      {showAlert && (
+        <Alert
+          title="Booking Confirmation"
+          message="This trip plan is AI-generated. Before booking, please double-check the hotel's location. This website is not responsible for incorrect bookings."
+          onClose={handleAlertClose}
+          onConfirm={handleAlertConfirm}
+        />
+      )}
       <div className="max-w-7xl mt-15 mx-auto py-12 px-6">
-
-
-
-        {/* Trip Details */}
         <motion.section
           className="card bg-base-100 shadow-2xl mb-10 rounded-2xl border border-base-300 overflow-hidden"
           initial={{ opacity: 0, scale: 0.95 }}
@@ -199,7 +207,6 @@ const TripPlanDisplay = () => {
           </div>
         </motion.section>
 
-        {/* Weather */}
         <motion.section
           className="card bg-base-100 shadow-2xl mb-10 rounded-2xl border border-base-300 overflow-hidden"
           initial={{ opacity: 0, scale: 0.95 }}
@@ -209,13 +216,22 @@ const TripPlanDisplay = () => {
           <TripWeather tripId={tripId} tripPlan={tripPlan} setTripPlan={setTripPlan} />
         </motion.section>
 
-        {/* Hotel Options */}
         <section className="mb-12">
-          <h2 className="text-4xl font-extrabold mb-8 flex items-center">
-            <FaStar className="mr-3" /> Luxurious Stays 🏨
-          </h2>
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-4xl font-extrabold flex items-center">
+              <FaStar className="mr-3" /> Luxurious Stays 🏨
+            </h2>
+            <motion.button
+              className="btn btn-primary"
+              onClick={() => window.open(`https://www.booking.com/searchresults.en-gb.html?ss=${tripDetails?.location}`, "_blank")}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Search All Hotels
+            </motion.button>
+          </div>
           <motion.div
-            className="grid grid-cols-1 lg:grid-cols-3   gap-8"
+            className="grid grid-cols-1 lg:grid-cols-3 gap-8"
             variants={containerVariants}
             initial="hidden"
             animate="visible"
@@ -244,22 +260,18 @@ const TripPlanDisplay = () => {
                     <p className="flex items-center ">
                       <FaMapMarkerAlt className="mr-2" /> {hotel.hotelAddress || "N/A"}
                     </p>
-                    <p className="font-semibold text-lg  flex items-center">
+                    <p className="font-semibold text-lg flex items-center">
                       {formatToINR(hotel.price)}
                     </p>
-                    <p className="text-sm  line-clamp-2">{hotel.description || "No description available"}</p>
+                    <p className="text-sm line-clamp-2">{hotel.description || "No description available"}</p>
                     <div className="card-actions flex justify-between">
                       <motion.button
                         className="btn bg-base-300 rounded-full px-6"
                         variants={buttonVariants}
                         whileHover="hover"
                         whileTap="tap"
-                        onClick={() => {
-                          const searchString = encodeURIComponent(`${hotel.hotelName}, ${tripDetails.location}`);
-                          window.open(`https://www.booking.com/searchresults.en-gb.html?ss=${searchString}`, "_blank");
-                        }}
+                        onClick={() => handleBookNowClick(hotel)}
                       >
-
                         Book Now
                       </motion.button>
                       <motion.button
@@ -283,8 +295,7 @@ const TripPlanDisplay = () => {
             )}
           </motion.div>
         </section>
-        
-        {/* Itinerary */}
+
         <section>
           <div className="md:flex items-center justify-between ">
             <h2 className="text-4xl font-extrabold mb-8 flex items-center">
@@ -295,7 +306,7 @@ const TripPlanDisplay = () => {
                 onClick={downloadItinerary}
                 variants={buttonVariants}
                 whileTap="tap"
-                className="btn bg-primary/20 hover:scale-105 transition-all duration-200 animate-bounce  mt-4"
+                className="btn bg-primary/20 hover:scale-105 transition-all duration-200 animate-bounce mt-4"
               >
                 Download Itinerary 📄
               </motion.button>
@@ -361,8 +372,7 @@ const TripPlanDisplay = () => {
                                   </svg>
                                 </div>
                                 <motion.div
-                                  className={`timeline-${index % 2 === 0 ? "start" : "end"
-                                    } card bg-base-100 shadow-lg rounded-xl p-5 hover:bg-base-200 transition-colors w-full max-w-md lg:max-w-lg mx-4 my-2`}
+                                  className={`timeline-${index % 2 === 0 ? "start" : "end"} card bg-base-100 shadow-lg rounded-xl p-5 hover:bg-base-200 transition-colors w-full max-w-md lg:max-w-lg mx-4 my-2`}
                                   variants={cardVariants}
                                   initial="hidden"
                                   animate="visible"
@@ -406,7 +416,6 @@ const TripPlanDisplay = () => {
                                       >
                                         <FaMap className="mr-2" /> View Map
                                       </motion.button>
-
                                     </div>
                                   </div>
                                 </motion.div>
