@@ -6,6 +6,7 @@ import { useTrip } from "../components/context/TripContext";
 import useAxios from "../components/Axios/axios";
 import Loader from "../components/Other/Loader";
 import TripWeather from "./TripWeather";
+import BookingAlert from "../components/Other/BookingAlert";
 
 const TripPlanDisplay = () => {
   const { tripId } = useParams();
@@ -13,7 +14,28 @@ const TripPlanDisplay = () => {
   const [loading, setLoading] = useState(true);
   const [openDay, setOpenDay] = useState(null);
   const navigate = useNavigate();
+  // const navigate = useNavigate(); // Removed duplicate
   const axiosInstance = useAxios();
+  const [showBookingAlert, setShowBookingAlert] = useState(false);
+  const [bookingUrl, setBookingUrl] = useState(null);
+
+  const handleBookingClick = (url) => {
+    setBookingUrl(url);
+    setShowBookingAlert(true);
+  };
+
+  const confirmBooking = () => {
+    if (bookingUrl) {
+      window.open(bookingUrl, "_blank");
+    }
+    setShowBookingAlert(false);
+    setBookingUrl(null);
+  };
+
+  const cancelBooking = () => {
+    setShowBookingAlert(false);
+    setBookingUrl(null);
+  };
 
 
 
@@ -49,16 +71,43 @@ const TripPlanDisplay = () => {
   const downloadItinerary = () => {
     if (!generatedPlan || !itinerary) return;
 
-    let itineraryText = `Trip to ${tripDetails.location}\nDuration: ${tripDetails.duration}\nTravelers: ${tripDetails.travelers}\nBudget: ${tripDetails.budget}\n\nItinerary:\n`;
+    let itineraryText = `TRIP PLANNER ITINERARY\n\n`;
+    itineraryText += `Destination: ${tripDetails.location}\n`;
+    itineraryText += `Duration: ${tripDetails.duration}\n`;
+    itineraryText += `Travelers: ${tripDetails.travelers}\n`;
+    itineraryText += `Budget: ${tripDetails.budget}\n`;
+    itineraryText += `====================================\n\n`;
+
+    if (hotelOptions && hotelOptions.length > 0) {
+      itineraryText += `HOTEL OPTIONS\n`;
+      itineraryText += `------------------------------------\n`;
+      hotelOptions.forEach((hotel, index) => {
+        itineraryText += `${index + 1}. ${hotel.hotelName}\n`;
+        itineraryText += `   Address: ${hotel.hotelAddress}\n`;
+        itineraryText += `   Price: ${formatToINR(hotel.price)}\n`;
+        itineraryText += `   Rating: ${hotel.rating} stars\n`;
+        if (hotel.description) itineraryText += `   Description: ${hotel.description}\n`;
+        itineraryText += `\n`;
+      });
+      itineraryText += `====================================\n\n`;
+    }
+
+    itineraryText += `DAILY ITINERARY\n`;
+    itineraryText += `------------------------------------\n`;
 
     Object.entries(itinerary).forEach(([day, details]) => {
-      //  console.log("Day:", day, "Details:", details); // Debugging line
+      itineraryText += `\nDAY ${day} - ${details.theme}\n`;
+      itineraryText += `Best Time to Visit: ${details.bestTimeToVisit}\n\n`;
 
-      itineraryText += `\n${day.toUpperCase()} - Theme: ${details.theme}\nBest Time to Visit: ${details.bestTimeToVisit}\nPlan:\n`;
       details.plan.forEach((activity, index) => {
-        // console.log( "ACTIVITY__________---------->",activity)
         itineraryText += `  ${index + 1}. ${activity.placeName}\n`;
+        itineraryText += `     Details: ${activity.placeDetails}\n`;
+        itineraryText += `     Time: ${activity.timeTravel}\n`;
+        itineraryText += `     Ticket: ${activity.ticketPricing}\n`;
+        itineraryText += `     Rating: ${activity.rating} stars\n`;
+        itineraryText += `\n`;
       });
+      itineraryText += `------------------------------------\n`;
     });
 
     const blob = new Blob([itineraryText], { type: "text/plain" });
@@ -110,21 +159,29 @@ const TripPlanDisplay = () => {
   const formatToINR = (priceStr) => {
     const exchangeRate = 83.5;
 
-    if (typeof priceStr !== "string") return "N/A";
+    if (!priceStr) return "N/A";
+    const strVal = String(priceStr);
+
+    // Check if the string explicitly mentions USD or $
+    const isUSD = strVal.includes('$') || strVal.toLowerCase().includes('usd');
 
     // Extract numbers using RegExp
-    const matches = priceStr.match(/\d+/g); // gets ["10", "20"]
+    const matches = strVal.match(/\d+/g); // gets ["10", "20"]
     if (!matches || matches.length === 0) return "N/A";
 
     // Use average or minimum price
-    const numericPrice = (parseInt(matches[0]) + (parseInt(matches[1]) || 0)) / (matches[1] ? 2 : 1);
+    const numericPrice = (parseInt(matches[0], 10) + (parseInt(matches[1], 10) || 0)) / (matches[1] ? 2 : 1);
 
-    const inrPrice = numericPrice * exchangeRate;
+    // If it's USD, multiply by exchange rate. Otherwise, assume it's already INR.
+    const inrPrice = isUSD ? numericPrice * exchangeRate : numericPrice;
+
     return inrPrice.toLocaleString("en-IN", {
       style: "currency",
       currency: "INR",
+      maximumFractionDigits: 0,
     });
   };
+
   return (
     <div className="max-h-screen overflow-x-hidden relative">
       <div className="max-w-7xl mt-15 mx-auto py-12 px-6">
@@ -219,8 +276,8 @@ const TripPlanDisplay = () => {
                         whileHover="hover"
                         whileTap="tap"
                         onClick={() => {
-                          const hotelName = encodeURIComponent(hotel.hotelName || tripDetails.location);
-                          window.open(`https://www.booking.com/searchresults.en-gb.html?aid=8020813&amp;ss=${hotelName}`, "_blank");
+                          const hotelName = encodeURIComponent((hotel.hotelName || "") + ", " + (tripDetails.location || ""));
+                          handleBookingClick(`https://www.booking.com/searchresults.en-gb.html?ss=${hotelName}`);
                         }}
                       >
 
@@ -232,8 +289,8 @@ const TripPlanDisplay = () => {
                         whileHover="hover"
                         whileTap="tap"
                         onClick={() => {
-                          const address = encodeURIComponent(hotel.hotelAddress || tripDetails.location);
-                          window.open(`https://www.google.com/maps/search/?api=1&query=${address}`, "_blank");
+                          const mapQuery = encodeURIComponent((hotel.hotelName || "") + " " + (hotel.hotelAddress || "") + ", " + (tripDetails.location || ""));
+                          window.open(`https://www.google.com/maps/search/?api=1&query=${mapQuery}`, "_blank");
                         }}
                       >
                         <FaMap className="mr-2" /> View Map
@@ -269,10 +326,12 @@ const TripPlanDisplay = () => {
                 </p>
               </div>
               <Link
-                to={`https://www.booking.com/searchresults.en-gb.html?aid=8020813&ss=${tripDetails?.location}`}
+                to={`https://www.booking.com/searchresults.en-gb.html?ss=${tripDetails?.location}`}
                 className="inline-flex items-center gap-2 w-fit bg-purple-600 hover:bg-purple-700 text-white font-medium text-sm px-4 py-2 rounded-lg transition duration-300"
-                target="_blank"
-                rel="noreferrer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleBookingClick(`https://www.booking.com/searchresults.en-gb.html?ss=${tripDetails?.location}`);
+                }}
               >
                 Find Hotels
                 <svg
@@ -440,6 +499,9 @@ const TripPlanDisplay = () => {
           )}
         </section>
       </div>
+      {showBookingAlert && (
+        <BookingAlert onConfirm={confirmBooking} onCancel={cancelBooking} />
+      )}
     </div>
   );
 };
