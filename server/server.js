@@ -2,13 +2,16 @@ const dotenv = require("dotenv");
 dotenv.config();
 const app = require('./src/app')
 const socketIo = require("socket.io");
-const jwt = require("jsonwebtoken");
 
 const connct = require("./src/db/db");
 connct();
 
 
 
+
+const { Clerk } = require('@clerk/clerk-sdk-node');
+
+const clerk = new Clerk({ secretKey: process.env.CLERK_SECRET_KEY });
 
 const http = require("http");
 const server = http.createServer(app);
@@ -20,8 +23,8 @@ const io = socketIo(server, {
   },
 });
 
-// Authenticate socket connections using JWT
-io.use((socket, next) => {
+// Authenticate socket connections using Clerk
+io.use(async (socket, next) => {
   try {
     const token =
       socket.handshake.auth?.token ||
@@ -32,7 +35,7 @@ io.use((socket, next) => {
       return next(new Error("Authentication error"));
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_TOKEN);
+    const decoded = await clerk.verifyToken(token, { clockSkewInMs: 60000 });
     if (!decoded) {
       return next(new Error("Authentication error"));
     }

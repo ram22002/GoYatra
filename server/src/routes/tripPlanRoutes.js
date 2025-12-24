@@ -5,15 +5,16 @@ const { chatController } = require("../controllers/chat.controller");
 
 const router = express.Router();
 
-router.post("/createtrip", clerkAuthMiddleware, createTrip);
+
+router.post("/createtrip", createTrip);
 
 router.post("/chat", chatController);
 
 // Swapped the order of the next two routes
-router.get("/history", clerkAuthMiddleware, getTripHistory);
+router.get("/history", getTripHistory);
 
-router.get("/:tripId", clerkAuthMiddleware, getTrip);
+router.get("/:tripId", getTrip);
 
-router.delete("/:tripId", clerkAuthMiddleware, deleteTrip);
+router.delete("/:tripId", deleteTrip);
 
 module.exports = router;
